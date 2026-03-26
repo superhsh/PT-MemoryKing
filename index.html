@@ -224,9 +224,22 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
 .rb-c .rb-val{color:var(--green);} .rb-w .rb-val{color:var(--red);} .rb-n .rb-val{color:var(--text2);}
 
 /* ═══ PROGRESS ═══ */
-.prog-row{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:14px 18px;display:flex;align-items:center;gap:14px;transition:border-color .2s;cursor:pointer;}
+.prog-row{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:14px 16px;cursor:pointer;transition:border-color .2s;}
 .prog-row:hover{border-color:var(--gold);background:rgba(201,168,76,.04);}
-.prog-actions{display:none;margin-top:0;padding:10px 18px 12px;background:var(--bg3);border:1px solid var(--border);border-top:none;border-radius:0 0 12px 12px;margin-top:-9px;animation:fadeUp .2s ease;}
+.prog-top{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
+.prog-law{font-family:'DM Mono',monospace;font-size:10px;color:var(--gold);white-space:nowrap;flex-shrink:0;}
+.prog-name{flex:1;font-size:13px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1.3;}
+.prog-tags{display:flex;align-items:center;gap:5px;flex-shrink:0;}
+.prog-bottom{display:flex;align-items:center;gap:12px;}
+.prog-tracks{display:flex;flex-direction:column;gap:3px;flex:1;min-width:0;}
+.prog-track-row{display:flex;align-items:center;gap:4px;}
+.pt-label{font-size:9px;font-family:'DM Mono',monospace;width:18px;flex-shrink:0;}
+.ptl-fc{color:var(--blue);} .ptl-sub{color:var(--purple);}
+.pt-bar{flex:1;height:3px;background:var(--border);border-radius:2px;}
+.pt-fill-fc{height:100%;background:var(--blue);border-radius:2px;}
+.pt-fill-sub{height:100%;background:var(--purple);border-radius:2px;}
+.prog-schedule{font-size:10px;color:var(--text3);text-align:right;white-space:nowrap;flex-shrink:0;}
+.prog-actions{display:none;margin-top:0;padding:10px 16px 12px;background:var(--bg3);border:1px solid var(--border);border-top:none;border-radius:0 0 12px 12px;margin-top:-9px;animation:fadeUp .2s ease;}
 .prog-actions.open{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
 .prog-actions .pa-label{font-size:11px;color:var(--text3);margin-right:4px;}
 .prog-actions .pa-btn{padding:6px 14px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;border:1px solid var(--border);background:var(--bg2);color:var(--text);transition:all .2s;}
@@ -235,15 +248,6 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
 .prog-actions .pa-sub{border-color:var(--purple);color:var(--purple);} .prog-actions .pa-sub:hover{background:rgba(155,110,240,.15);}
 .prog-actions .pa-info{font-size:10px;color:var(--text3);margin-left:auto;font-family:'DM Mono',monospace;}
 .progress-grid{display:flex;flex-direction:column;gap:8px;}
-.prog-law{font-family:'DM Mono',monospace;font-size:10px;color:var(--gold);min-width:90px;}
-.prog-name{flex:1;font-size:12px;color:var(--text2);}
-.prog-tracks{display:flex;flex-direction:column;gap:3px;width:70px;}
-.prog-track-row{display:flex;align-items:center;gap:4px;}
-.pt-label{font-size:9px;font-family:'DM Mono',monospace;width:18px;}
-.ptl-fc{color:var(--blue);} .ptl-sub{color:var(--purple);}
-.pt-bar{flex:1;height:3px;background:var(--border);border-radius:2px;}
-.pt-fill-fc{height:100%;background:var(--blue);border-radius:2px;}
-.pt-fill-sub{height:100%;background:var(--purple);border-radius:2px;}
 .mastered-tag{font-size:9px;color:var(--green);background:rgba(82,201,122,.1);padding:2px 6px;border-radius:4px;font-family:'DM Mono',monospace;white-space:nowrap;}
 .learning-tag{font-size:9px;color:var(--gold);background:var(--gold-dim);padding:2px 6px;border-radius:4px;font-family:'DM Mono',monospace;white-space:nowrap;}
 .new-tag{font-size:9px;color:var(--text3);background:var(--bg3);padding:2px 6px;border-radius:4px;font-family:'DM Mono',monospace;white-space:nowrap;}
@@ -351,7 +355,7 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
 /* Scrollbar */
 ::-webkit-scrollbar{width:5px;} ::-webkit-scrollbar-track{background:var(--bg2);}
 ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;} ::-webkit-scrollbar-thumb:hover{background:var(--gold);}
-@media(max-width:600px){.stats-row{grid-template-columns:repeat(3,1fr);}.mode-grid{grid-template-columns:1fr;}.card-scene{height:270px;}.card-face{padding:22px;}.grade-comparison{grid-template-columns:1fr;}.routine-grid{grid-template-columns:1fr;}.dday-schedule{grid-template-columns:repeat(2,1fr);}#screen-data-io>div:nth-child(2){grid-template-columns:1fr;}}
+@media(max-width:600px){.stats-row{grid-template-columns:repeat(3,1fr);}.mode-grid{grid-template-columns:1fr;}.card-scene{height:270px;}.card-face{padding:22px;}.grade-comparison{grid-template-columns:1fr;}.routine-grid{grid-template-columns:1fr;}.dday-schedule{grid-template-columns:repeat(2,1fr);}#screen-data-io>div:nth-child(2){grid-template-columns:1fr;}.prog-actions .pa-info{width:100%;margin-left:0;margin-top:4px;}}
 
 /* ─── Fill-in-blank 카드 ─── */
 .fill-card{background:var(--bg2);border:1px solid var(--border);border-radius:20px;padding:28px 28px 22px;box-shadow:var(--shadow);}
@@ -2275,27 +2279,29 @@ function renderProgress(filter){
     const subPct=s?Math.min(100,Math.round(s.subCorrect/3*100)):0;
     const ret=computeRetention(s);
     const tag=mastered?'<span class="mastered-tag">⭐암기완료</span>':isNew?'<span class="new-tag">신규</span>':'<span class="learning-tag">학습중</span>';
-    const retStr=ret!==null?'<span style="font-size:9px;font-family:DM Mono,monospace;color:'+getRetentionColor(ret)+';">기억유지 '+ret+'%</span>':'';
+    const retStr=ret!==null?'<span style="font-size:9px;font-family:DM Mono,monospace;color:'+getRetentionColor(ret)+';">'+ret+'%</span>':'';
     const daysFC=s&&s.fcNextDue>now?Math.ceil((s.fcNextDue-now)/86400000):0;
-    const fcNext=isNew?'미학습':isFCDue(card.id)?'FC 복습필요':'FC '+daysFC+'일 후';
-    const subNext=s&&s.subAttempts>0?(isSubDue(card.id)?'주관식 복습필요':'SUB '+s.subCorrect+'/3'):'주관식 미시도';
+    const fcNext=isNew?'미학습':isFCDue(card.id)?'<span style="color:var(--red);">복습필요</span>':daysFC+'일 후';
+    const subNext=s&&s.subAttempts>0?(isSubDue(card.id)?'<span style="color:var(--purple);">복습필요</span>':s.subCorrect+'/3'):'미시도';
 
-    // 카드 행 wrapper
     var wrapper=document.createElement('div');
     wrapper.style.cssText='margin-bottom:8px;';
 
     var row=document.createElement('div');row.className='prog-row';
     row.innerHTML=
-      '<div class="prog-law">'+escapeHTML(card.law)+'</div>'+
-      '<div class="prog-name">'+(card.q.length>28?escapeHTML(card.q.slice(0,28))+'…':escapeHTML(card.q))+'</div>'+
-      '<div style="display:flex;flex-direction:column;gap:2px;">'+tag+retStr+'</div>'+
-      '<div class="prog-tracks">'+
-      '<div class="prog-track-row"><span class="pt-label ptl-fc">FC</span><div class="pt-bar"><div class="pt-fill-fc" style="width:'+fcPct+'%"></div></div></div>'+
-      '<div class="prog-track-row"><span class="pt-label ptl-sub">주관</span><div class="pt-bar"><div class="pt-fill-sub" style="width:'+subPct+'%"></div></div></div>'+
+      '<div class="prog-top">'+
+        '<span class="prog-law">'+escapeHTML(card.law)+'</span>'+
+        '<span class="prog-name">'+escapeHTML(card.q)+'</span>'+
+        '<span class="prog-tags">'+tag+(retStr?' '+retStr:'')+'</span>'+
       '</div>'+
-      '<div style="font-size:10px;color:var(--text3);text-align:right;min-width:88px;">'+fcNext+'<br>'+subNext+'</div>';
+      '<div class="prog-bottom">'+
+        '<div class="prog-tracks">'+
+          '<div class="prog-track-row"><span class="pt-label ptl-fc">FC</span><div class="pt-bar"><div class="pt-fill-fc" style="width:'+fcPct+'%"></div></div></div>'+
+          '<div class="prog-track-row"><span class="pt-label ptl-sub">주관</span><div class="pt-bar"><div class="pt-fill-sub" style="width:'+subPct+'%"></div></div></div>'+
+        '</div>'+
+        '<span class="prog-schedule">FC '+fcNext+' · SUB '+subNext+'</span>'+
+      '</div>';
 
-    // 액션 패널
     var actions=document.createElement('div');
     actions.className='prog-actions';
 
@@ -2318,10 +2324,8 @@ function renderProgress(filter){
     info.textContent='FC '+(s?s.fcAttempts||0:0)+'회 · SUB '+(s?s.subAttempts||0:0)+'회';
     actions.appendChild(info);
 
-    // 행 클릭 → 토글
     row.addEventListener('click',function(){
       var wasOpen=actions.classList.contains('open');
-      // 다른 열린 패널 닫기
       grid.querySelectorAll('.prog-actions.open').forEach(function(a){a.classList.remove('open');});
       grid.querySelectorAll('.prog-row').forEach(function(r){r.style.borderRadius='12px';r.style.borderBottomColor='';});
       if(!wasOpen){
