@@ -224,8 +224,16 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
 .rb-c .rb-val{color:var(--green);} .rb-w .rb-val{color:var(--red);} .rb-n .rb-val{color:var(--text2);}
 
 /* ═══ PROGRESS ═══ */
-.prog-row{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:14px 18px;display:flex;align-items:center;gap:14px;transition:border-color .2s;}
-.prog-row:hover{border-color:var(--border);}
+.prog-row{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:14px 18px;display:flex;align-items:center;gap:14px;transition:border-color .2s;cursor:pointer;}
+.prog-row:hover{border-color:var(--gold);background:rgba(201,168,76,.04);}
+.prog-actions{display:none;margin-top:0;padding:10px 18px 12px;background:var(--bg3);border:1px solid var(--border);border-top:none;border-radius:0 0 12px 12px;margin-top:-9px;animation:fadeUp .2s ease;}
+.prog-actions.open{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+.prog-actions .pa-label{font-size:11px;color:var(--text3);margin-right:4px;}
+.prog-actions .pa-btn{padding:6px 14px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;border:1px solid var(--border);background:var(--bg2);color:var(--text);transition:all .2s;}
+.prog-actions .pa-btn:hover{transform:translateY(-1px);}
+.prog-actions .pa-fc{border-color:var(--blue);color:var(--blue);} .prog-actions .pa-fc:hover{background:rgba(91,138,240,.15);}
+.prog-actions .pa-sub{border-color:var(--purple);color:var(--purple);} .prog-actions .pa-sub:hover{background:rgba(155,110,240,.15);}
+.prog-actions .pa-info{font-size:10px;color:var(--text3);margin-left:auto;font-family:'DM Mono',monospace;}
 .progress-grid{display:flex;flex-direction:column;gap:8px;}
 .prog-law{font-family:'DM Mono',monospace;font-size:10px;color:var(--gold);min-width:90px;}
 .prog-name{flex:1;font-size:12px;color:var(--text2);}
@@ -343,7 +351,7 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
 /* Scrollbar */
 ::-webkit-scrollbar{width:5px;} ::-webkit-scrollbar-track{background:var(--bg2);}
 ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;} ::-webkit-scrollbar-thumb:hover{background:var(--gold);}
-@media(max-width:600px){.stats-row{grid-template-columns:repeat(3,1fr);}.mode-grid{grid-template-columns:1fr;}.card-scene{height:270px;}.card-face{padding:22px;}.grade-comparison{grid-template-columns:1fr;}.routine-grid{grid-template-columns:1fr;}.dday-schedule{grid-template-columns:repeat(2,1fr);}}
+@media(max-width:600px){.stats-row{grid-template-columns:repeat(3,1fr);}.mode-grid{grid-template-columns:1fr;}.card-scene{height:270px;}.card-face{padding:22px;}.grade-comparison{grid-template-columns:1fr;}.routine-grid{grid-template-columns:1fr;}.dday-schedule{grid-template-columns:repeat(2,1fr);}#screen-data-io>div:nth-child(2){grid-template-columns:1fr;}}
 
 /* ─── Fill-in-blank 카드 ─── */
 .fill-card{background:var(--bg2);border:1px solid var(--border);border-radius:20px;padding:28px 28px 22px;box-shadow:var(--shadow);}
@@ -475,7 +483,13 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
 
   <div id="session-info-txt" style="text-align:center;font-size:11px;color:var(--text3);margin:-8px 0 16px;font-family:'DM Mono',monospace;"></div>
   <div id="cat-section">
-    <div class="section-title">▸ 카테고리 선택 (미선택 시 전체)</div>
+    <div class="section-title" style="display:flex;justify-content:space-between;align-items:center;">
+      <span>▸ 카테고리 선택 (미선택 시 전체)</span>
+      <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;font-size:11px;color:var(--green);letter-spacing:0;text-transform:none;font-family:'Noto Sans KR',sans-serif;border-bottom:none;padding-bottom:0;margin-bottom:0;">
+        <input type="checkbox" id="custom-only-toggle" onchange="toggleCustomOnly()" style="accent-color:var(--green);width:14px;height:14px;">
+        <span>내 카드만 (<span id="custom-card-count">0</span>개)</span>
+      </label>
+    </div>
     <div class="category-grid" id="category-grid"></div>
   </div>
 
@@ -492,12 +506,6 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
       <div class="mode-title">백지 주관식</div>
       <div class="mode-desc">의의·취지·요건을 직접 기술<br>키워드 자동 채점 + 자기평가</div>
       <div class="mode-badge badge-purple">SUB 트랙</div>
-    </div>
-    <div class="mode-card sub-mode" onclick="startMode('feynman')">
-      <div class="mode-icon">🧒</div>
-      <div class="mode-title">파인만 쓰기</div>
-      <div class="mode-desc">초등학생에게 설명하듯<br>쉬운 말로 → 진짜 이해 확인</div>
-      <div class="mode-badge badge-purple">FEYNMAN</div>
     </div>
     <div class="mode-card review-mode" onclick="startMode('review')">
       <div class="mode-icon">🔁</div>
@@ -529,6 +537,18 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
       <div class="mode-title">학습 현황</div>
       <div class="mode-desc">FC·주관식 트랙 진도<br>다음 복습일 전체 조회</div>
       <div class="mode-badge badge-gold">STATS</div>
+    </div>
+    <div class="mode-card" style="border-color:var(--green);background:rgba(82,201,122,.04);" onclick="showScreen('screen-add-card')">
+      <div class="mode-icon">➕</div>
+      <div class="mode-title">카드 추가</div>
+      <div class="mode-desc">새 법조문·판례·요건 등<br>나만의 암기 카드 만들기</div>
+      <div class="mode-badge badge-green">CUSTOM</div>
+    </div>
+    <div class="mode-card" style="border-color:var(--text2);" onclick="showScreen('screen-data-io')">
+      <div class="mode-icon">💾</div>
+      <div class="mode-title">내보내기/가져오기</div>
+      <div class="mode-desc">카드 & 학습 데이터<br>JSON 파일로 백업·복원</div>
+      <div class="mode-badge" style="background:var(--bg3);color:var(--text2);border:1px solid var(--border);">DATA</div>
     </div>
   </div>
 
@@ -732,6 +752,125 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
 </div>
 
 </div><!-- /app -->
+
+<!-- ═══ ADD CARD SCREEN ═══ -->
+<div id="screen-add-card" class="screen" style="position:relative;z-index:1;max-width:900px;margin:0 auto;padding:24px 16px;">
+  <div class="fc-header" style="margin-bottom:20px;">
+    <button class="fc-back-btn" onclick="goHome()">← 홈</button>
+    <div style="flex:1;text-align:center;font-family:'Noto Serif KR',serif;font-size:15px;font-weight:700;color:var(--green);">➕ 나만의 암기 카드 추가</div>
+  </div>
+
+  <div style="background:var(--bg2);border:1px solid var(--border);border-radius:16px;padding:20px;margin-bottom:16px;">
+    <div style="font-size:11px;color:var(--gold);letter-spacing:2px;text-transform:uppercase;font-family:'DM Mono',monospace;margin-bottom:14px;">카드 내용 입력</div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
+      <div>
+        <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px;">카테고리</label>
+        <select id="add-cat" style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text);font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;">
+          <option value="">선택...</option>
+        </select>
+        <div style="margin-top:4px;display:flex;gap:6px;">
+          <input id="add-cat-new" style="flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:5px 8px;color:var(--text);font-size:11px;outline:none;" placeholder="새 카테고리 입력">
+          <button class="btn btn-sm btn-secondary" style="padding:4px 8px;font-size:10px;" onclick="addNewCatOption()">추가</button>
+        </div>
+      </div>
+      <div>
+        <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px;">법조문/출처</label>
+        <input id="add-law" style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text);font-size:13px;outline:none;box-sizing:border-box;" placeholder="예: 法29②">
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
+      <div>
+        <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px;">소분류 (sub)</label>
+        <input id="add-sub" style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text);font-size:13px;outline:none;box-sizing:border-box;" placeholder="예: 진보성">
+      </div>
+      <div>
+        <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px;">필드 유형</label>
+        <select id="add-field" style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text);font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;">
+          <option value="의의">의의</option>
+          <option value="취지">취지</option>
+          <option value="요건">요건</option>
+          <option value="효과">효과</option>
+          <option value="절차">절차</option>
+          <option value="조치">조치</option>
+          <option value="판례">판례</option>
+          <option value="의의/취지">의의/취지</option>
+          <option value="의의/취지/요건">의의/취지/요건</option>
+        </select>
+      </div>
+    </div>
+
+    <div style="margin-bottom:12px;">
+      <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px;">질문 (앞면)</label>
+      <input id="add-q" style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:14px;outline:none;box-sizing:border-box;" placeholder="예: 진보성(法29②)의 의의는?">
+    </div>
+
+    <div style="margin-bottom:12px;">
+      <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px;">답변 (뒷면) — 중요 부분은 **볼드** 표시 가능</label>
+      <textarea id="add-a" style="width:100%;min-height:80px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:14px;outline:none;resize:vertical;font-family:'Noto Sans KR',sans-serif;line-height:1.7;box-sizing:border-box;" placeholder="예: **보호할 가치가 있는 기술적 진보를 포함하는 발명일 것** (주관적 창작성)&#10;줄바꿈도 가능합니다."></textarea>
+    </div>
+
+    <div style="margin-bottom:12px;">
+      <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px;">🔑 키워드 선택 — 답변에서 중요 키워드를 콤마(,)로 구분 입력</label>
+      <input id="add-keywords" style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:14px;outline:none;box-sizing:border-box;" placeholder="예: 기술적 진보, 주관적 창작성, 보호할 가치">
+      <div id="add-kw-preview" style="margin-top:6px;display:flex;flex-wrap:wrap;gap:5px;"></div>
+    </div>
+
+    <div style="text-align:center;margin-top:16px;" id="add-card-btn-area">
+      <button class="btn btn-green" id="btn-save-card" style="color:#0d0f14;font-weight:700;padding:12px 32px;" onclick="saveCustomCard()">✓ 카드 추가하기</button>
+      <button class="btn btn-secondary btn-sm" id="btn-cancel-edit" style="display:none;margin-left:8px;" onclick="cancelEditCard()">취소</button>
+    </div>
+  </div>
+
+  <!-- 내 카드 목록 -->
+  <div style="margin-top:20px;">
+    <div style="font-size:11px;color:var(--gold);letter-spacing:2px;text-transform:uppercase;font-family:'DM Mono',monospace;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;">
+      <span>📋 내가 추가한 카드 (<span id="my-card-count">0</span>개)</span>
+    </div>
+    <div id="my-cards-list" style="display:flex;flex-direction:column;gap:8px;"></div>
+  </div>
+</div>
+
+<!-- ═══ DATA IO SCREEN ═══ -->
+<div id="screen-data-io" class="screen" style="position:relative;z-index:1;max-width:900px;margin:0 auto;padding:24px 16px;">
+  <div class="fc-header" style="margin-bottom:20px;">
+    <button class="fc-back-btn" onclick="goHome()">← 홈</button>
+    <div style="flex:1;text-align:center;font-family:'Noto Serif KR',serif;font-size:15px;font-weight:700;color:var(--text);">💾 데이터 내보내기/가져오기</div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+    <!-- 내보내기 -->
+    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:16px;padding:24px;text-align:center;">
+      <div style="font-size:32px;margin-bottom:12px;">📤</div>
+      <div style="font-size:15px;font-weight:700;color:var(--gold2);margin-bottom:8px;">내보내기</div>
+      <div style="font-size:12px;color:var(--text2);line-height:1.6;margin-bottom:16px;">
+        모든 암기 카드 (기본 + 내 카드)<br>
+        학습 통계 데이터<br>
+        루틴·D-day 설정<br>
+        → JSON 파일로 저장
+      </div>
+      <div id="export-info" style="font-size:11px;color:var(--text3);margin-bottom:12px;font-family:'DM Mono',monospace;"></div>
+      <button class="btn btn-primary" onclick="exportData()">📥 JSON 파일 내보내기</button>
+    </div>
+
+    <!-- 가져오기 -->
+    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:16px;padding:24px;text-align:center;">
+      <div style="font-size:32px;margin-bottom:12px;">📥</div>
+      <div style="font-size:15px;font-weight:700;color:var(--blue);margin-bottom:8px;">가져오기</div>
+      <div style="font-size:12px;color:var(--text2);line-height:1.6;margin-bottom:16px;">
+        이전에 내보낸 JSON 파일을<br>
+        업로드하면 앱 데이터가<br>
+        파일 내용으로 복원됩니다<br>
+        <span style="color:var(--red);font-weight:700;">⚠ 기존 데이터 덮어쓰기</span>
+      </div>
+      <input type="file" id="import-file" accept=".json" style="display:none;" onchange="importData(event)">
+      <button class="btn btn-blue" onclick="document.getElementById('import-file').click()">📂 JSON 파일 가져오기</button>
+    </div>
+  </div>
+
+  <div id="import-result" style="margin-top:16px;display:none;"></div>
+</div>
 <div class="toast" id="toast"></div>
 <div class="session-timer" id="session-timer" style="display:none;">⏱ <span id="timer-display">00:00</span></div>
 
@@ -1323,7 +1462,7 @@ function getGradeInfo(score) {
 let selectedCats=new Set(), currentDeck=[], currentIdx=0, currentMode='';
 let sessionStats={correct:0,wrong:0,newCards:0,masteryGained:0};
 let isFlipped=false, quizAnswered=false, subGraded=false;
-const CATS=[...new Set(CARDS.map(c=>c.cat))];
+let CATS=[...new Set(CARDS.map(c=>c.cat))];
 
 // ═══════════════════════════════════════════════════════════
 //  SCREENS
@@ -1370,18 +1509,22 @@ function calcStreak(){
 function renderCategories(){
   const grid=document.getElementById('category-grid');
   grid.innerHTML='';
-  CATS.forEach(cat=>{
-    const cards=CARDS.filter(c=>c.cat===cat);
+  const catsToShow=customOnly?CATS.filter(function(cat){return CARDS.some(function(c){return c.cat===cat&&c._custom;});}):CATS;
+  catsToShow.forEach(cat=>{
+    const allCards=CARDS.filter(c=>c.cat===cat);
+    const cards=customOnly?allCards.filter(function(c){return c._custom;}):allCards;
     const total=cards.length;
+    if(total===0) return;
     const fcDone=cards.filter(c=>db[c.id]&&db[c.id].fcInterval>=7).length;
     const subDone=cards.filter(c=>db[c.id]&&db[c.id].subCorrect>=1).length;
     const mastered=cards.filter(c=>isMastered(c.id)).length;
     const fcDue=cards.filter(c=>isFCDue(c.id)).length;
+    const customCount=allCards.filter(function(c){return c._custom;}).length;
     const fcPct=Math.round(fcDone/total*100);
     const subPct=Math.round(subDone/total*100);
     const btn=document.createElement('div');
     btn.className='cat-btn'+(selectedCats.has(cat)?' selected':'');
-    btn.innerHTML=`<span class="cat-name">${cat}</span>
+    btn.innerHTML=`<span class="cat-name">${cat}${customCount>0?' <span style="font-size:9px;color:var(--green);font-weight:400;">+'+customCount+'</span>':''}</span>
 <div class="cat-meta">${total}개 · ⭐${mastered}${fcDue>0?` <span class="due-badge">${fcDue}</span>`:''}</div>
 <div class="cat-tracks">
 <div class="cat-track-bar"><div class="cat-track-fill-fc" style="width:${fcPct}%" title="FC ${fcPct}%"></div></div>
@@ -1390,6 +1533,9 @@ function renderCategories(){
     btn.onclick=()=>toggleCat(cat,btn);
     grid.appendChild(btn);
   });
+  if(customOnly&&catsToShow.length===0){
+    grid.innerHTML='<div style="text-align:center;color:var(--text3);padding:20px;grid-column:1/-1;font-size:13px;">추가한 카드가 없습니다. ➕ 카드 추가에서 만들어보세요.</div>';
+  }
 }
 
 function toggleCat(cat,btn){
@@ -1506,6 +1652,20 @@ function startMode(mode){
   else if(['subjective','sub-review'].includes(mode)) loadSubjective();
 }
 
+// ── 개별 카드 학습 (학습현황에서 선택) ──────────────────────
+function startSingleCard(cardId, mode){
+  loadDB();
+  var card=CARDS.find(function(c){return c.id===cardId;});
+  if(!card){showToast('카드를 찾을 수 없습니다.');return;}
+  currentMode=mode;
+  sessionStats={correct:0,wrong:0,newCards:0,masteryGained:0};
+  currentDeck=[card];
+  currentIdx=0;
+  startSessionTimer();
+  if(mode==='flashcard') loadFlashcard();
+  else if(mode==='subjective') loadSubjective();
+}
+
 // ── 루틴 슬롯 ─────────────────────────────────────────────
 function startRoutine(type){
   markRoutineDone(type);
@@ -1619,6 +1779,15 @@ function updateScheduleViz(s){
 //  FILL-IN-BLANK FLASHCARD
 // ═══════════════════════════════════════════════════════════
 
+// HTML 속성값 안전하게 이스케이프
+function escapeAttr(s){
+  return s.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+// 일반 텍스트를 HTML 안전하게 이스케이프
+function escapeHTML(s){
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
 // 답안 텍스트에서 키워드를 빈칸 input으로 교체
 function buildFillHTML(card){
   // HTML 태그 제거 후 줄바꿈 보존
@@ -1627,17 +1796,35 @@ function buildFillHTML(card){
     .replace(/<strong>(.*?)<\/strong>/gi, '$1')
     .replace(/<[^>]+>/g, '');
 
-  // 각 키워드를 순서대로 빈칸으로 대체 (첫 번째 등장 위치)
+  // 키워드 위치를 먼저 마킹 (플레이스홀더로 치환)
+  const markers = [];
   const used = [];
   card.keywords.forEach((kw, i) => {
     const idx = text.indexOf(kw);
-    if(idx === -1) return; // 텍스트에 없으면 건너뜀
-    const w = Math.max(70, kw.length * 22) + 'px';
-    const placeholder = '_'.repeat(Math.min(kw.length, 6));
-    const inp = '<input class="blank-inp" id="bi'+i+'" data-idx="'+i+'" data-answer="'+kw.replace(/"/g,'&quot;')+'" style="width:'+w+'" placeholder="'+placeholder+'" autocomplete="off" spellcheck="false">';
-    text = text.slice(0, idx) + inp + text.slice(idx + kw.length);
+    if(idx === -1) return;
+    const marker = '\x00KW'+i+'\x00';
+    markers.push({i:i, kw:kw, marker:marker});
+    text = text.slice(0, idx) + marker + text.slice(idx + kw.length);
     used.push(i);
   });
+
+  // 키워드가 아닌 텍스트 부분을 HTML 이스케이프
+  // 마커를 기준으로 분할 → 텍스트 부분만 이스케이프 → 다시 합침
+  let parts = text.split(/(\x00KW\d+\x00)/);
+  parts = parts.map(function(part){
+    if(/^\x00KW\d+\x00$/.test(part)){
+      // 마커 → input 엘리먼트로 교체
+      var m = markers.find(function(mk){return mk.marker===part;});
+      if(!m) return part;
+      var w = Math.max(70, m.kw.length * 22) + 'px';
+      var placeholder = '_'.repeat(Math.min(m.kw.length, 6));
+      return '<input class="blank-inp" id="bi'+m.i+'" data-idx="'+m.i+'" data-answer="'+escapeAttr(m.kw)+'" style="width:'+w+'" placeholder="'+placeholder+'" autocomplete="off" spellcheck="false">';
+    } else {
+      // 일반 텍스트 → HTML 이스케이프
+      return escapeHTML(part);
+    }
+  });
+  text = parts.join('');
 
   // 없는 키워드를 빈 input으로 줄 하단에 추가
   const missing = card.keywords.map((_,i)=>i).filter(i=>!used.includes(i));
@@ -1647,7 +1834,7 @@ function buildFillHTML(card){
     missing.forEach(i=>{
       const kw = card.keywords[i];
       const w = Math.max(80, kw.length * 22) + 'px';
-      extra += '<div style="margin-top:6px;font-size:12px;color:var(--text3);">• <input class="blank-inp" id="bi'+i+'" data-idx="'+i+'" data-answer="'+kw.replace(/"/g,'&quot;')+'" style="width:'+w+'" placeholder="키워드 입력" autocomplete="off"></div>';
+      extra += '<div style="margin-top:6px;font-size:12px;color:var(--text3);">• <input class="blank-inp" id="bi'+i+'" data-idx="'+i+'" data-answer="'+escapeAttr(kw)+'" style="width:'+w+'" placeholder="키워드 입력" autocomplete="off"></div>';
     });
   }
 
@@ -1996,11 +2183,15 @@ function renderCurveScreen(){
     const elapsed=(Date.now()-(s.fcNextDue-iv*86400000))/86400000;
     const tx=Math.min((Math.max(0,elapsed)/(iv+7))*w,w);
     const ty=h-(ret/100)*h;
+
+    var wrapper=document.createElement('div');
+    wrapper.style.cssText='margin-bottom:8px;';
+
     const row=document.createElement('div');
-    row.style.cssText='background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:12px 16px;display:flex;align-items:center;gap:12px;margin-bottom:8px;';
+    row.style.cssText='background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:12px 16px;display:flex;align-items:center;gap:12px;cursor:pointer;transition:border-color .2s;';
     row.innerHTML=
-      '<div style="min-width:72px;"><div style="font-family:DM Mono,monospace;font-size:9px;color:var(--gold);">'+card.law+'</div>'+
-      '<div style="font-size:11px;color:var(--text2);margin-top:2px;line-height:1.3;">'+card.sub+'</div></div>'+
+      '<div style="min-width:72px;"><div style="font-family:DM Mono,monospace;font-size:9px;color:var(--gold);">'+escapeHTML(card.law)+'</div>'+
+      '<div style="font-size:11px;color:var(--text2);margin-top:2px;line-height:1.3;">'+escapeHTML(card.sub)+'</div></div>'+
       '<div style="flex:1;"><svg width="'+w+'" height="'+h+'" style="display:block;">'+
       '<rect width="'+w+'" height="'+h+'" fill="var(--bg3)" rx="4"/>'+
       '<polyline points="'+pts.join(' ')+'" fill="none" stroke="'+color+'" stroke-width="1.5" opacity="0.7"/>'+
@@ -2012,7 +2203,49 @@ function renderCurveScreen(){
       '<div style="font-size:9px;color:var(--text3);margin-top:2px;">간격 '+iv+'일</div>'+
       (isFCDue(card.id)?'<div style="font-size:9px;color:var(--red);font-weight:700;margin-top:2px;">복습 필요</div>':'')+
       '</div>';
-    grid.appendChild(row);
+
+    row.addEventListener('mouseenter',function(){row.style.borderColor='var(--gold)';row.style.background='rgba(201,168,76,.04)';});
+    row.addEventListener('mouseleave',function(){if(!actions.classList.contains('open')){row.style.borderColor='var(--border)';row.style.background='var(--bg2)';}});
+
+    // 액션 패널
+    var actions=document.createElement('div');
+    actions.className='prog-actions';
+
+    var label=document.createElement('span');
+    label.className='pa-label';label.textContent='학습 →';
+    actions.appendChild(label);
+
+    var fcBtn=document.createElement('button');
+    fcBtn.className='pa-btn pa-fc';fcBtn.textContent='🃏 플래시카드';
+    fcBtn.addEventListener('click',function(e){e.stopPropagation();startSingleCard(card.id,'flashcard');});
+    actions.appendChild(fcBtn);
+
+    var subBtn=document.createElement('button');
+    subBtn.className='pa-btn pa-sub';subBtn.textContent='✍️ 백지 주관식';
+    subBtn.addEventListener('click',function(e){e.stopPropagation();startSingleCard(card.id,'subjective');});
+    actions.appendChild(subBtn);
+
+    var info=document.createElement('span');
+    info.className='pa-info';
+    info.textContent='FC '+(s.fcAttempts||0)+'회 · SUB '+(s.subAttempts||0)+'회';
+    actions.appendChild(info);
+
+    row.addEventListener('click',function(){
+      var wasOpen=actions.classList.contains('open');
+      grid.querySelectorAll('.prog-actions.open').forEach(function(a){a.classList.remove('open');});
+      grid.querySelectorAll('[data-curve-row]').forEach(function(r){r.style.borderRadius='12px';r.style.borderColor='var(--border)';r.style.background='var(--bg2)';});
+      if(!wasOpen){
+        actions.classList.add('open');
+        row.style.borderRadius='12px 12px 0 0';
+        row.style.borderColor='var(--gold)';
+        row.style.background='rgba(201,168,76,.04)';
+      }
+    });
+
+    row.setAttribute('data-curve-row','1');
+    wrapper.appendChild(row);
+    wrapper.appendChild(actions);
+    grid.appendChild(wrapper);
   });
 }
 
@@ -2046,17 +2279,60 @@ function renderProgress(filter){
     const daysFC=s&&s.fcNextDue>now?Math.ceil((s.fcNextDue-now)/86400000):0;
     const fcNext=isNew?'미학습':isFCDue(card.id)?'FC 복습필요':'FC '+daysFC+'일 후';
     const subNext=s&&s.subAttempts>0?(isSubDue(card.id)?'주관식 복습필요':'SUB '+s.subCorrect+'/3'):'주관식 미시도';
-    const row=document.createElement('div');row.className='prog-row';
+
+    // 카드 행 wrapper
+    var wrapper=document.createElement('div');
+    wrapper.style.cssText='margin-bottom:8px;';
+
+    var row=document.createElement('div');row.className='prog-row';
     row.innerHTML=
-      '<div class="prog-law">'+card.law+'</div>'+
-      '<div class="prog-name">'+(card.q.length>28?card.q.slice(0,28)+'…':card.q)+'</div>'+
+      '<div class="prog-law">'+escapeHTML(card.law)+'</div>'+
+      '<div class="prog-name">'+(card.q.length>28?escapeHTML(card.q.slice(0,28))+'…':escapeHTML(card.q))+'</div>'+
       '<div style="display:flex;flex-direction:column;gap:2px;">'+tag+retStr+'</div>'+
       '<div class="prog-tracks">'+
       '<div class="prog-track-row"><span class="pt-label ptl-fc">FC</span><div class="pt-bar"><div class="pt-fill-fc" style="width:'+fcPct+'%"></div></div></div>'+
       '<div class="prog-track-row"><span class="pt-label ptl-sub">주관</span><div class="pt-bar"><div class="pt-fill-sub" style="width:'+subPct+'%"></div></div></div>'+
       '</div>'+
       '<div style="font-size:10px;color:var(--text3);text-align:right;min-width:88px;">'+fcNext+'<br>'+subNext+'</div>';
-    grid.appendChild(row);
+
+    // 액션 패널
+    var actions=document.createElement('div');
+    actions.className='prog-actions';
+
+    var label=document.createElement('span');
+    label.className='pa-label';label.textContent='학습 →';
+    actions.appendChild(label);
+
+    var fcBtn=document.createElement('button');
+    fcBtn.className='pa-btn pa-fc';fcBtn.textContent='🃏 플래시카드';
+    fcBtn.addEventListener('click',function(e){e.stopPropagation();startSingleCard(card.id,'flashcard');});
+    actions.appendChild(fcBtn);
+
+    var subBtn=document.createElement('button');
+    subBtn.className='pa-btn pa-sub';subBtn.textContent='✍️ 백지 주관식';
+    subBtn.addEventListener('click',function(e){e.stopPropagation();startSingleCard(card.id,'subjective');});
+    actions.appendChild(subBtn);
+
+    var info=document.createElement('span');
+    info.className='pa-info';
+    info.textContent='FC '+(s?s.fcAttempts||0:0)+'회 · SUB '+(s?s.subAttempts||0:0)+'회';
+    actions.appendChild(info);
+
+    // 행 클릭 → 토글
+    row.addEventListener('click',function(){
+      var wasOpen=actions.classList.contains('open');
+      // 다른 열린 패널 닫기
+      grid.querySelectorAll('.prog-actions.open').forEach(function(a){a.classList.remove('open');});
+      grid.querySelectorAll('.prog-row').forEach(function(r){r.style.borderRadius='12px';r.style.borderBottomColor='';});
+      if(!wasOpen){
+        actions.classList.add('open');
+        row.style.borderRadius='12px 12px 0 0';
+      }
+    });
+
+    wrapper.appendChild(row);
+    wrapper.appendChild(actions);
+    grid.appendChild(wrapper);
   });
 }
 
@@ -2103,18 +2379,467 @@ function showToast(msg){
   setTimeout(function(){t.classList.remove('show');},2800);
 }
 function resetAll(){
-  if(!confirm('모든 학습 데이터를 초기화하시겠습니까?')) return;
+  if(!confirm('모든 학습 데이터를 초기화하시겠습니까?\n(커스텀 카드는 유지됩니다. 커스텀 카드도 삭제하려면 개별 삭제해주세요.)')) return;
   ['patentLaw_v3','patentHist_v2','patentRoutines','patentDday'].forEach(function(k){localStorage.removeItem(k);});
   db={};loadDB();updateHome();showToast('전체 초기화 완료');
 }
 
 // ═══════════════════════════════════════════════════════════
-//  INIT
+//  CUSTOM CARDS
 // ═══════════════════════════════════════════════════════════
+const CUSTOM_SK='patentCustomCards_v1';
+let customCards=[];
+
+function loadCustomCards(){
+  try{customCards=JSON.parse(localStorage.getItem(CUSTOM_SK))||[];}catch(e){customCards=[];}
+  // Ensure all custom cards are in CARDS and db
+  customCards.forEach(function(cc){
+    cc._custom=true;
+    if(!CARDS.find(function(c){return c.id===cc.id;})){
+      CARDS.push(cc);
+    }
+    if(!db[cc.id]) db[cc.id]={
+      fcInterval:0,fcReps:0,fcEF:2.5,fcNextDue:0,
+      fcAttempts:0,fcWrong:0,subCorrect:0,subAttempts:0,subNextDue:0,subInterval:0
+    };
+  });
+  // Recalculate CATS
+  CATS.length=0;
+  var seen={};
+  CARDS.forEach(function(c){if(!seen[c.cat]){seen[c.cat]=true;CATS.push(c.cat);}});
+}
+
+function saveCustomCards(){
+  localStorage.setItem(CUSTOM_SK,JSON.stringify(customCards));
+}
+
+function saveCustomCard(){
+  var catSel=document.getElementById('add-cat').value;
+  var law=document.getElementById('add-law').value.trim();
+  var sub=document.getElementById('add-sub').value.trim();
+  var field=document.getElementById('add-field').value;
+  var q=document.getElementById('add-q').value.trim();
+  var aRaw=document.getElementById('add-a').value.trim();
+  var kwStr=document.getElementById('add-keywords').value.trim();
+
+  if(!catSel){showToast('카테고리를 선택해주세요.');return;}
+  if(!q){showToast('질문을 입력해주세요.');return;}
+  if(!aRaw){showToast('답변을 입력해주세요.');return;}
+  if(!kwStr){showToast('키워드를 1개 이상 입력해주세요.');return;}
+
+  // Convert **bold** to <strong>
+  var a=aRaw.replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>').replace(/\n/g,'<br>');
+  var keywords=kwStr.split(',').map(function(k){return k.trim();}).filter(function(k){return k.length>0;});
+
+  if(editingCardId){
+    // ── 수정 모드 ──
+    var cc=customCards.find(function(c){return c.id===editingCardId;});
+    if(cc){
+      cc.cat=catSel; cc.law=law||'-'; cc.sub=sub||'-';
+      cc.field=field; cc.q=q; cc.a=a; cc.keywords=keywords;
+      saveCustomCards();
+      // CARDS 배열도 동기화
+      var rc=CARDS.find(function(c){return c.id===editingCardId;});
+      if(rc){ rc.cat=catSel; rc.law=law||'-'; rc.sub=sub||'-'; rc.field=field; rc.q=q; rc.a=a; rc.keywords=keywords; }
+    }
+    showToast('✏️ 카드가 수정되었습니다!');
+    cancelEditCard(); // 폼 초기화 + 버튼 복원
+  } else {
+    // ── 신규 추가 모드 ──
+    var id='CU'+Date.now().toString(36).toUpperCase();
+    var card={id:id,cat:catSel,law:law||'-',sub:sub||'-',field:field,q:q,a:a,keywords:keywords,_custom:true};
+
+    customCards.push(card);
+    saveCustomCards();
+
+    // Also add to runtime CARDS
+    CARDS.push(card);
+    if(!db[card.id]) db[card.id]={
+      fcInterval:0,fcReps:0,fcEF:2.5,fcNextDue:0,
+      fcAttempts:0,fcWrong:0,subCorrect:0,subAttempts:0,subNextDue:0,subInterval:0
+    };
+    saveDB();
+
+    // Clear form
+    document.getElementById('add-q').value='';
+    document.getElementById('add-a').value='';
+    document.getElementById('add-keywords').value='';
+    document.getElementById('add-kw-preview').innerHTML='';
+
+    showToast('✅ 카드가 추가되었습니다! ('+card.q.slice(0,20)+'...)');
+  }
+
+  // Recalculate CATS
+  CATS.length=0;
+  var seen={};
+  CARDS.forEach(function(c){if(!seen[c.cat]){seen[c.cat]=true;CATS.push(c.cat);}});
+
+  renderMyCardsList();
+  updateCustomCardCount();
+  populateAddCatSelect();
+}
+
+function deleteCustomCard(id){
+  if(!confirm('이 카드를 삭제하시겠습니까?')) return;
+  if(editingCardId===id) cancelEditCard();
+  customCards=customCards.filter(function(c){return c.id!==id;});
+  saveCustomCards();
+  // Remove from CARDS
+  var idx=CARDS.findIndex(function(c){return c.id===id;});
+  if(idx>=0) CARDS.splice(idx,1);
+  // Remove from db
+  delete db[id];
+  saveDB();
+  // Recalculate CATS
+  CATS.length=0;
+  var seen={};
+  CARDS.forEach(function(c){if(!seen[c.cat]){seen[c.cat]=true;CATS.push(c.cat);}});
+  renderMyCardsList();
+  updateCustomCardCount();
+  showToast('카드가 삭제되었습니다.');
+}
+
+// ── 카드 수정 모드 ───────────────────────────────────────
+var editingCardId=null;
+
+function editCustomCard(id){
+  var card=customCards.find(function(c){return c.id===id;});
+  if(!card) return;
+  editingCardId=id;
+
+  // 폼에 기존 값 채우기
+  populateAddCatSelect();
+  document.getElementById('add-cat').value=card.cat;
+  document.getElementById('add-law').value=card.law||'';
+  document.getElementById('add-sub').value=card.sub||'';
+  document.getElementById('add-field').value=card.field||'의의';
+  document.getElementById('add-q').value=card.q||'';
+
+  // 답변: <strong>→**bold**, <br>→줄바꿈 역변환
+  var aText=card.a.replace(/<br\s*\/?>/gi,'\n').replace(/<strong>(.*?)<\/strong>/gi,'**$1**').replace(/<[^>]+>/g,'');
+  document.getElementById('add-a').value=aText;
+
+  document.getElementById('add-keywords').value=(card.keywords||[]).join(', ');
+  // 키워드 미리보기 트리거
+  var kwPreview=document.getElementById('add-kw-preview');
+  if(kwPreview){
+    kwPreview.innerHTML=card.keywords.map(function(k){return '<span style="font-size:11px;padding:3px 9px;border-radius:20px;font-family:DM Mono,monospace;background:rgba(82,201,122,.15);color:var(--green);border:1px solid rgba(82,201,122,.3);">'+k+'</span>';}).join('');
+  }
+
+  // 버튼 전환: 추가 → 수정 완료
+  var saveBtn=document.getElementById('btn-save-card');
+  saveBtn.textContent='✏️ 수정 완료';
+  saveBtn.className='btn btn-blue';
+  saveBtn.style.cssText='color:#fff;font-weight:700;padding:12px 32px;';
+  document.getElementById('btn-cancel-edit').style.display='inline-block';
+
+  // 폼 영역으로 스크롤
+  document.getElementById('add-cat').scrollIntoView({behavior:'smooth',block:'start'});
+  showToast('수정 모드 — 내용을 변경 후 "수정 완료"를 누르세요.');
+}
+
+function cancelEditCard(){
+  editingCardId=null;
+  // 폼 초기화
+  document.getElementById('add-cat').value='';
+  document.getElementById('add-law').value='';
+  document.getElementById('add-sub').value='';
+  document.getElementById('add-field').value='의의';
+  document.getElementById('add-q').value='';
+  document.getElementById('add-a').value='';
+  document.getElementById('add-keywords').value='';
+  var kwPreview=document.getElementById('add-kw-preview');
+  if(kwPreview) kwPreview.innerHTML='';
+
+  // 버튼 복원: 수정 완료 → 추가
+  var saveBtn=document.getElementById('btn-save-card');
+  saveBtn.textContent='✓ 카드 추가하기';
+  saveBtn.className='btn btn-green';
+  saveBtn.style.cssText='color:#0d0f14;font-weight:700;padding:12px 32px;';
+  document.getElementById('btn-cancel-edit').style.display='none';
+}
+
+function renderMyCardsList(){
+  var list=document.getElementById('my-cards-list');
+  if(!list) return;
+  var countEl=document.getElementById('my-card-count');
+  if(countEl) countEl.textContent=customCards.length;
+  list.innerHTML='';
+  if(customCards.length===0){
+    list.innerHTML='<div style="text-align:center;color:var(--text3);padding:24px;">아직 추가한 카드가 없습니다.</div>';
+    return;
+  }
+  customCards.slice().reverse().forEach(function(card){
+    var s=db[card.id];
+    var mastered=isMastered(card.id);
+    var learned=s&&s.fcReps>0;
+    var tag=mastered?'<span class="mastered-tag">⭐암기완료</span>':learned?'<span class="learning-tag">학습중</span>':'<span class="new-tag">신규</span>';
+    var row=document.createElement('div');
+    row.style.cssText='background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:12px 16px;display:flex;align-items:center;gap:12px;';
+
+    var infoDiv=document.createElement('div');
+    infoDiv.style.cssText='flex:1;min-width:0;';
+    infoDiv.innerHTML=
+      '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:4px;">'+
+      '<span style="font-family:DM Mono,monospace;font-size:10px;color:var(--green);background:rgba(82,201,122,.12);padding:1px 6px;border-radius:4px;">CUSTOM</span>'+
+      '<span style="font-family:DM Mono,monospace;font-size:10px;color:var(--gold);">'+escapeHTML(card.law)+'</span>'+
+      '<span style="font-size:10px;color:var(--text3);">'+escapeHTML(card.cat)+'</span>'+
+      tag+'</div>'+
+      '<div style="font-size:13px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+escapeHTML(card.q)+'</div>'+
+      '<div style="font-size:10px;color:var(--text3);margin-top:2px;">키워드: '+card.keywords.map(function(k){return escapeHTML(k);}).join(', ')+'</div>';
+    row.appendChild(infoDiv);
+
+    var btnDiv=document.createElement('div');
+    btnDiv.style.cssText='display:flex;flex-direction:column;gap:5px;';
+
+    var editBtn=document.createElement('button');
+    editBtn.style.cssText='background:rgba(91,138,240,.1);border:1px solid rgba(91,138,240,.3);border-radius:8px;padding:6px 10px;cursor:pointer;color:var(--blue);font-size:12px;white-space:nowrap;';
+    editBtn.textContent='수정';
+    editBtn.addEventListener('click',function(){ editCustomCard(card.id); });
+    btnDiv.appendChild(editBtn);
+
+    var delBtn=document.createElement('button');
+    delBtn.style.cssText='background:rgba(224,82,82,.1);border:1px solid rgba(224,82,82,.3);border-radius:8px;padding:6px 10px;cursor:pointer;color:var(--red);font-size:12px;white-space:nowrap;';
+    delBtn.textContent='삭제';
+    delBtn.addEventListener('click',function(){ deleteCustomCard(card.id); });
+    btnDiv.appendChild(delBtn);
+
+    row.appendChild(btnDiv);
+    list.appendChild(row);
+  });
+}
+
+function updateCustomCardCount(){
+  var el=document.getElementById('custom-card-count');
+  if(el) el.textContent=customCards.length;
+}
+
+function populateAddCatSelect(){
+  var sel=document.getElementById('add-cat');
+  if(!sel) return;
+  var val=sel.value;
+  sel.innerHTML='<option value="">선택...</option>';
+  CATS.forEach(function(cat){
+    var opt=document.createElement('option');
+    opt.value=cat;opt.textContent=cat;
+    sel.appendChild(opt);
+  });
+  sel.value=val;
+}
+
+function addNewCatOption(){
+  var inp=document.getElementById('add-cat-new');
+  var v=inp.value.trim();
+  if(!v){showToast('카테고리명을 입력해주세요.');return;}
+  if(CATS.indexOf(v)<0) CATS.push(v);
+  populateAddCatSelect();
+  document.getElementById('add-cat').value=v;
+  inp.value='';
+  showToast('카테고리 "'+v+'" 추가됨');
+}
+
+// Keyword preview
+document.addEventListener('input',function(e){
+  if(e.target&&e.target.id==='add-keywords'){
+    var kws=e.target.value.split(',').map(function(k){return k.trim();}).filter(function(k){return k.length>0;});
+    var preview=document.getElementById('add-kw-preview');
+    if(preview){
+      preview.innerHTML=kws.map(function(k){return '<span style="font-size:11px;padding:3px 9px;border-radius:20px;font-family:DM Mono,monospace;background:rgba(82,201,122,.15);color:var(--green);border:1px solid rgba(82,201,122,.3);">'+k+'</span>';}).join('');
+    }
+  }
+});
+
+// ═══════════════════════════════════════════════════════════
+//  CUSTOM-ONLY FILTER
+// ═══════════════════════════════════════════════════════════
+let customOnly=false;
+
+function toggleCustomOnly(){
+  customOnly=document.getElementById('custom-only-toggle').checked;
+  renderCategories();
+}
+
+// Override getFilteredCards to respect customOnly
+var _origGetFilteredCards=getFilteredCards;
+getFilteredCards=function(){
+  var base=_origGetFilteredCards();
+  if(customOnly){
+    base=base.filter(function(c){return c._custom===true;});
+  }
+  return base;
+};
+
+// ═══════════════════════════════════════════════════════════
+//  EXPORT / IMPORT
+// ═══════════════════════════════════════════════════════════
+async function exportData(){
+  loadDB();
+  var data={
+    version:'patent_master_v5',
+    exportDate:new Date().toISOString(),
+    builtinCardCount:CARDS.filter(function(c){return !c._custom;}).length,
+    customCards:customCards,
+    db:db,
+    history:null,
+    routines:null,
+    dday:null
+  };
+  try{data.history=JSON.parse(localStorage.getItem('patentHist_v2'))||{};}catch(e){data.history={};}
+  try{data.routines=JSON.parse(localStorage.getItem('patentRoutines'))||{};}catch(e){data.routines={};}
+  data.dday=localStorage.getItem('patentDday')||null;
+
+  var blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  var fileName='특허법마스터_백업_'+todayStr()+'.json';
+
+  // showSaveFilePicker: 저장 위치 선택 다이얼로그 표시
+  if(window.showSaveFilePicker){
+    try{
+      var handle=await window.showSaveFilePicker({
+        suggestedName:fileName,
+        types:[{description:'JSON 파일',accept:{'application/json':['.json']}}]
+      });
+      var writable=await handle.createWritable();
+      await writable.write(blob);
+      await writable.close();
+      var infoEl=document.getElementById('export-info');
+      if(infoEl) infoEl.textContent='✅ 내보내기 완료 · 기본 '+data.builtinCardCount+'장 + 커스텀 '+customCards.length+'장';
+      showToast('📥 데이터가 JSON 파일로 저장되었습니다.');
+    }catch(err){
+      if(err.name!=='AbortError') showToast('저장 실패: '+err.message);
+    }
+  } else {
+    // 폴백: showSaveFilePicker 미지원 브라우저
+    var url=URL.createObjectURL(blob);
+    var a=document.createElement('a');
+    a.href=url;
+    a.download=fileName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    var infoEl=document.getElementById('export-info');
+    if(infoEl) infoEl.textContent='✅ 내보내기 완료 · 기본 '+data.builtinCardCount+'장 + 커스텀 '+customCards.length+'장';
+    showToast('📥 데이터가 JSON 파일로 저장되었습니다.');
+  }
+}
+
+function importData(event){
+  var file=event.target.files[0];
+  if(!file){return;}
+  var reader=new FileReader();
+  reader.onload=function(e){
+    try{
+      var data=JSON.parse(e.target.result);
+      if(!data.version||!data.db){
+        showImportResult(false,'유효하지 않은 파일입니다. 특허법마스터에서 내보낸 JSON 파일을 사용해주세요.');
+        return;
+      }
+      if(!confirm('가져오기를 하면 현재 모든 데이터가 파일 내용으로 덮어쓰여집니다.\n계속하시겠습니까?')){
+        event.target.value='';return;
+      }
+
+      // Restore custom cards
+      if(data.customCards&&Array.isArray(data.customCards)){
+        customCards=data.customCards;
+        customCards.forEach(function(c){c._custom=true;});
+        saveCustomCards();
+        // Remove old custom cards from CARDS, re-add
+        for(var i=CARDS.length-1;i>=0;i--){
+          if(CARDS[i]._custom) CARDS.splice(i,1);
+        }
+        customCards.forEach(function(cc){
+          CARDS.push(cc);
+        });
+      }
+
+      // Restore db
+      if(data.db){
+        db=data.db;
+        // Ensure all CARDS have db entries
+        CARDS.forEach(function(c){
+          if(!db[c.id]) db[c.id]={
+            fcInterval:0,fcReps:0,fcEF:2.5,fcNextDue:0,
+            fcAttempts:0,fcWrong:0,subCorrect:0,subAttempts:0,subNextDue:0,subInterval:0
+          };
+        });
+        localStorage.setItem(SK,JSON.stringify(db));
+      }
+
+      // Restore history
+      if(data.history) localStorage.setItem('patentHist_v2',JSON.stringify(data.history));
+      // Restore routines
+      if(data.routines) localStorage.setItem('patentRoutines',JSON.stringify(data.routines));
+      // Restore dday
+      if(data.dday) localStorage.setItem('patentDday',data.dday);
+      else localStorage.removeItem('patentDday');
+
+      // Recalculate CATS
+      CATS.length=0;
+      var seen={};
+      CARDS.forEach(function(c){if(!seen[c.cat]){seen[c.cat]=true;CATS.push(c.cat);}});
+
+      loadDB();
+      updateHome();
+      renderDday();
+      updateRoutineSlots();
+      updateCustomCardCount();
+
+      var customCount=customCards.length;
+      var totalLearned=CARDS.filter(function(c){return db[c.id]&&db[c.id].fcReps>0;}).length;
+      showImportResult(true,'데이터 복원 완료!<br>커스텀 카드: '+customCount+'장 · 학습 기록 카드: '+totalLearned+'장<br>내보낸 날짜: '+(data.exportDate||'알 수 없음'));
+      showToast('✅ 데이터를 성공적으로 가져왔습니다!');
+    }catch(err){
+      showImportResult(false,'파일 읽기 실패: '+err.message);
+    }
+    event.target.value='';
+  };
+  reader.readAsText(file);
+}
+
+function showImportResult(success,msg){
+  var el=document.getElementById('import-result');
+  if(!el) return;
+  el.style.display='block';
+  el.style.background=success?'rgba(82,201,122,.1)':'rgba(224,82,82,.1)';
+  el.style.border='1px solid '+(success?'var(--green)':'var(--red)');
+  el.style.borderRadius='12px';
+  el.style.padding='14px 18px';
+  el.style.color=success?'var(--green)':'var(--red)';
+  el.style.fontSize='13px';
+  el.style.lineHeight='1.7';
+  el.innerHTML=(success?'✅ ':'❌ ')+msg;
+}
+
+// ═══════════════════════════════════════════════════════════
+//  INIT OVERRIDES (load custom cards on startup)
+// ═══════════════════════════════════════════════════════════
+loadCustomCards();
+updateCustomCardCount();
 loadDB();
 updateHome();
 renderDday();
 updateRoutineSlots();
+
+// Override showScreen to handle new screens
+var _origShowScreen=showScreen;
+showScreen=function(id){
+  // Also handle new screens
+  document.querySelectorAll('.screen').forEach(function(s){s.classList.remove('active');});
+  var el=document.getElementById(id);
+  if(el) el.classList.add('active');
+  if(id==='screen-home'){stopSessionTimer();updateHome();updateRoutineSlots();renderDday();updateCustomCardCount();}
+  if(id==='screen-progress') renderProgress('all');
+  if(id==='screen-curve') renderCurveScreen();
+  if(id==='screen-add-card'){populateAddCatSelect();renderMyCardsList();}
+  if(id==='screen-data-io'){
+    var infoEl=document.getElementById('export-info');
+    if(infoEl){
+      var total=CARDS.length;var cust=customCards.length;
+      var learned=CARDS.filter(function(c){return db[c.id]&&db[c.id].fcReps>0;}).length;
+      infoEl.textContent='기본 '+(total-cust)+'장 + 커스텀 '+cust+'장 · 학습기록 '+learned+'장';
+    }
+  }
+};
 </script>
 </body>
 </html>
