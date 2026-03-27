@@ -632,11 +632,13 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
     </div>
     <div id="fc-cardview-area" style="display:none;margin-top:14px;background:var(--bg3);border:1px solid var(--border);border-radius:14px;padding:18px 20px;line-height:2.2;font-size:14px;color:var(--text2);"></div>
     <div id="fc-next-row" style="display:none;text-align:center;margin-top:14px;">
-      <button class="btn btn-blue" onclick="nextFCCard()">다음 문제 →</button>
+      <button class="btn btn-purple btn-sm" onclick="switchToSubForCurrentCard()">✍️ 주관식도 풀기</button>
+      <button class="btn btn-blue" style="margin-left:8px;" onclick="nextFCCard()">다음 문제 →</button>
     </div>
     <div id="fc-retry-row" style="display:none;text-align:center;margin-top:14px;">
       <button class="btn btn-secondary" onclick="retryCard()">🔄 오답만 다시</button>
       <button class="btn btn-secondary btn-sm" onclick="toggleCardView()" id="fc-cardview-btn2" style="display:none;">👁 카드보기</button>
+      <button class="btn btn-purple btn-sm" onclick="switchToSubForCurrentCard()">✍️ 주관식</button>
       <button class="btn btn-blue" style="margin-left:8px;" onclick="nextFCCard()">다음으로 →</button>
     </div>
     <!-- 다음 복습 예정 표시 -->
@@ -650,7 +652,7 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
 
 <div id="screen-subjective" class="screen">
   <div class="fc-header">
-    <button class="fc-back-btn" onclick="goHome()">← 홈</button>
+    <button class="fc-back-btn" id="sub-back-btn" onclick="goHome()">← 홈</button>
     <div class="fc-progress-wrap">
       <div class="fc-progress-bar"><div class="fc-progress-fill purple" id="sub-prog-fill" style="width:0%"></div></div>
       <div class="fc-counter" id="sub-counter">0 / 0</div>
@@ -1484,6 +1486,10 @@ let lastSubmitResults=[]; // [{ok, expected, given, idx}]
 let fcSavedIdx=-1;          // 현재 진행 중이던 인덱스 저장
 let fcReviewingPrev=false;  // 이전 카드 복습 모드 여부
 
+// ── FC 중 주관식 전환 상태 ──
+let fcInlineSub=false;
+let fcInlineSubSaved=null;  // {deck, idx, mode, stats}
+
 // ═══════════════════════════════════════════════════════════
 //  SCREENS
 // ═══════════════════════════════════════════════════════════
@@ -2189,6 +2195,40 @@ function returnToCurrentCard(){
   loadFlashcard();
 }
 
+// ── FC 중 해당 카드 주관식 전환 ─────────────────────────────
+function switchToSubForCurrentCard(){
+  var card=currentDeck[currentIdx];
+  if(!card){showToast('카드를 찾을 수 없습니다.');return;}
+
+  // 현재 FC 세션 상태 저장
+  fcInlineSub=true;
+  fcInlineSubSaved={
+    deck:currentDeck,
+    idx:currentIdx,
+    mode:currentMode,
+    stats:{...sessionStats}
+  };
+
+  // 주관식 모드로 단일 카드 세팅
+  currentMode='subjective';
+  currentDeck=[card];
+  currentIdx=0;
+  loadSubjective();
+}
+
+function returnFromInlineSub(){
+  if(!fcInlineSubSaved) return;
+  fcInlineSub=false;
+  currentDeck=fcInlineSubSaved.deck;
+  currentIdx=fcInlineSubSaved.idx;
+  currentMode=fcInlineSubSaved.mode;
+  sessionStats=fcInlineSubSaved.stats;
+  fcInlineSubSaved=null;
+  // FC 다음 카드로 진행
+  currentIdx++;
+  loadFlashcard();
+}
+
 function updateFCProgress(){
   const tot=currentDeck.length;
   const progressIdx=fcReviewingPrev?fcSavedIdx:currentIdx;
@@ -2246,6 +2286,18 @@ function loadSubjective(){
     container.appendChild(hBtn);
   }
   updateSubProgress();
+
+  // 인라인 주관식 모드일 때 뒤로가기 버튼 변경
+  var subBackBtn=document.getElementById('sub-back-btn');
+  if(subBackBtn){
+    if(fcInlineSub){
+      subBackBtn.textContent='← FC로 돌아가기';
+      subBackBtn.onclick=function(){ returnFromInlineSub(); };
+    } else {
+      subBackBtn.textContent='← 홈';
+      subBackBtn.onclick=function(){ goHome(); };
+    }
+  }
 }
 
 function gradeSubjective(){
@@ -2289,12 +2341,19 @@ function finalizeSubjective(isCorrect){
   const wasM=isMastered(card.id);
   db[card.id]=updateSubjective({...db[card.id]},isCorrect);
   saveDB();
-  if(isCorrect) sessionStats.correct++;
-  else{sessionStats.wrong++;currentDeck.push(card);}
+  if(!fcInlineSub){
+    if(isCorrect) sessionStats.correct++;
+    else{sessionStats.wrong++;currentDeck.push(card);}
+  }
   if(!wasM&&isMastered(card.id)) sessionStats.masteryGained++;
   document.querySelectorAll('.self-eval-btn').forEach(function(b){b.disabled=true;b.style.opacity='0.4';});
+
+  var nextLabel=fcInlineSub?'🃏 FC 다음 문제로 →':'다음 문제 →';
+  var retryLabel=fcInlineSub?'🃏 FC로 돌아가기':'다음으로 →';
+
   if(isCorrect){
     document.getElementById('sub-next-row').style.display='block';
+    document.getElementById('sub-next-row').querySelector('button').textContent=nextLabel;
     document.getElementById('sub-retry-row').style.display='none';
     const need=3-db[card.id].subCorrect;
     if(need>0) showToast('✍️ 정답! 완전암기까지 주관식 '+need+'회 더 필요');
@@ -2302,23 +2361,40 @@ function finalizeSubjective(isCorrect){
   } else {
     document.getElementById('sub-next-row').style.display='none';
     document.getElementById('sub-retry-row').style.display='block';
+    // 인라인 모드에서는 "다음으로" 버튼 텍스트 변경
+    var btns=document.getElementById('sub-retry-row').querySelectorAll('button');
+    if(btns.length>=2) btns[1].textContent=retryLabel;
   }
 }
 function nextSubCard(){
   document.getElementById('sub-retry-row').style.display='none';
+  if(fcInlineSub){
+    returnFromInlineSub();
+    return;
+  }
   currentIdx++;loadSubjective();
 }
 function retrySubCard(){
-  // 같은 카드 다시 시도 (currentIdx 유지, 화면만 리셋)
   document.getElementById('sub-retry-row').style.display='none';
   loadSubjective();
 }
-function skipSubCard(){currentIdx++;loadSubjective();}
+function skipSubCard(){
+  if(fcInlineSub){
+    returnFromInlineSub();
+    return;
+  }
+  currentIdx++;loadSubjective();
+}
 function updateSubProgress(){
   const tot=currentDeck.length,pct=tot>0?Math.round(currentIdx/tot*100):0;
   document.getElementById('sub-prog-fill').style.width=pct+'%';
-  document.getElementById('sub-counter').textContent=(currentIdx+1)+' / '+tot;
-  document.getElementById('sub-mode-label').textContent=currentMode==='sub-review'?'SUB DUE':'WRITE';
+  if(fcInlineSub){
+    document.getElementById('sub-counter').textContent='✍️ FC → 주관식';
+    document.getElementById('sub-mode-label').textContent='FC+SUB';
+  } else {
+    document.getElementById('sub-counter').textContent=(currentIdx+1)+' / '+tot;
+    document.getElementById('sub-mode-label').textContent=currentMode==='sub-review'?'SUB DUE':'WRITE';
+  }
 }
 
 // ═══════════════════════════════════════════════════════════
