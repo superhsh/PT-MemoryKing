@@ -565,6 +565,7 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
 <div id="screen-flashcard" class="screen">
   <div class="fc-header">
     <button class="fc-back-btn" onclick="goHome()">← 홈</button>
+    <button class="fc-back-btn" id="fc-prev-btn" onclick="prevFCCard()" style="display:none;font-size:12px;padding:6px 10px;">← 이전</button>
     <div class="fc-progress-wrap">
       <div class="fc-progress-bar"><div class="fc-progress-fill" id="fc-prog-fill" style="width:0%"></div></div>
       <div class="fc-counter" id="fc-counter">0 / 0</div>
@@ -626,17 +627,24 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
     <!-- 버튼 행 -->
     <div id="fc-btn-row" style="display:flex;gap:10px;justify-content:center;margin-top:18px;flex-wrap:wrap;">
       <button class="btn btn-blue" onclick="submitBlanks()">✓ 제출하기</button>
+      <button class="btn btn-secondary btn-sm" onclick="toggleCardView()" id="fc-cardview-btn">👁 카드보기</button>
       <button class="btn btn-secondary btn-sm" onclick="skipCard()">건너뛰기 →</button>
     </div>
+    <div id="fc-cardview-area" style="display:none;margin-top:14px;background:var(--bg3);border:1px solid var(--border);border-radius:14px;padding:18px 20px;line-height:2.2;font-size:14px;color:var(--text2);"></div>
     <div id="fc-next-row" style="display:none;text-align:center;margin-top:14px;">
       <button class="btn btn-blue" onclick="nextFCCard()">다음 문제 →</button>
     </div>
     <div id="fc-retry-row" style="display:none;text-align:center;margin-top:14px;">
-      <button class="btn btn-secondary" onclick="retryCard()">🔄 다시 시도</button>
+      <button class="btn btn-secondary" onclick="retryCard()">🔄 오답만 다시</button>
+      <button class="btn btn-secondary btn-sm" onclick="toggleCardView()" id="fc-cardview-btn2" style="display:none;">👁 카드보기</button>
       <button class="btn btn-blue" style="margin-left:8px;" onclick="nextFCCard()">다음으로 →</button>
     </div>
     <!-- 다음 복습 예정 표시 -->
     <div id="fc-next-schedule" style="display:none;text-align:center;margin-top:10px;font-size:11px;color:var(--text3);font-family:'DM Mono',monospace;"></div>
+    <!-- 이전 카드 복습 중 돌아가기 -->
+    <div id="fc-return-row" style="display:none;text-align:center;margin-top:14px;">
+      <button class="btn btn-blue" onclick="returnToCurrentCard()">현재 문제로 돌아가기 →</button>
+    </div>
   </div>
 </div>
 
@@ -1468,6 +1476,14 @@ let sessionStats={correct:0,wrong:0,newCards:0,masteryGained:0};
 let isFlipped=false, quizAnswered=false, subGraded=false;
 let CATS=[...new Set(CARDS.map(c=>c.cat))];
 
+// ── 빈칸별 오답 횟수 추적 (카드 단위, 재시도 시 누적) ──
+let blankWrongCounts={};  // { kwIndex: count }
+let lastSubmitResults=[]; // [{ok, expected, given, idx}]
+
+// ── 이전 카드 복습 상태 ──
+let fcSavedIdx=-1;          // 현재 진행 중이던 인덱스 저장
+let fcReviewingPrev=false;  // 이전 카드 복습 모드 여부
+
 // ═══════════════════════════════════════════════════════════
 //  SCREENS
 // ═══════════════════════════════════════════════════════════
@@ -1874,6 +1890,13 @@ function loadFlashcard(){
   document.getElementById('fc-next-row').style.display='none';
   document.getElementById('fc-retry-row').style.display='none';
   document.getElementById('fc-next-schedule').style.display='none';
+  document.getElementById('fc-cardview-area').style.display='none';
+  document.getElementById('fc-cardview-btn').textContent='👁 카드보기';
+  var cv2=document.getElementById('fc-cardview-btn2');if(cv2)cv2.style.display='none';
+
+  // 새 카드로 넘어갈 때만 오답 카운트 초기화
+  blankWrongCounts={};
+  lastSubmitResults=[];
 
   const ml={review:'REVIEW',flashcard:'FILL','sleep-review':'SLEEP',sprint:'SPRINT'};
   document.getElementById('fc-mode-label').textContent=ml[currentMode]||'FILL';
@@ -1897,23 +1920,51 @@ function loadFlashcard(){
   updateScheduleViz(s);
   updateFCProgress();
 
-  // 첫 번째 빈칸에 포커스
-  setTimeout(()=>{
-    const first=document.querySelector('#fc-fill-area .blank-inp');
-    if(first) first.focus();
-  },80);
+  // 이전 카드 버튼 표시/숨김
+  var prevBtn=document.getElementById('fc-prev-btn');
+  if(prevBtn) prevBtn.style.display=currentIdx>0?'inline-block':'none';
 
-  // Enter 키로 다음 빈칸 이동 / 마지막에서 제출
-  setupBlankKeyEvents(card);
+  // 돌아가기 행
+  document.getElementById('fc-return-row').style.display=fcReviewingPrev?'block':'none';
+
+  if(fcReviewingPrev){
+    // 이전 카드 복습 모드: 정답 전부 채워서 읽기 전용으로 표시
+    document.getElementById('fc-btn-row').style.display='none';
+    document.getElementById('fc-field-label').textContent='▸ '+card.field+' · 📖 이전 카드 복습 중';
+
+    var inputs=[...document.querySelectorAll('#fc-fill-area .blank-inp')];
+    inputs.forEach(function(inp){
+      var answer=(inp.dataset.answer||'').trim();
+      inp.value=answer;
+      inp.disabled=true;
+      inp.classList.add('blank-ok');
+      inp.style.opacity='0.85';
+    });
+
+    // 카드보기도 자동 오픈
+    var cvArea=document.getElementById('fc-cardview-area');
+    cvArea.innerHTML=buildCardViewHTML(card);
+    cvArea.style.display='block';
+  } else {
+    // 첫 번째 빈칸에 포커스
+    setTimeout(()=>{
+      const first=document.querySelector('#fc-fill-area .blank-inp');
+      if(first) first.focus();
+    },80);
+
+    // Enter 키로 다음 빈칸 이동 / 마지막에서 제출
+    setupBlankKeyEvents(card);
+  }
 }
 
 function setupBlankKeyEvents(card){
   const inputs=[...document.querySelectorAll('#fc-fill-area .blank-inp')];
-  inputs.forEach((inp,i)=>{
+  const activeInputs=inputs.filter(function(inp){return !inp.disabled;});
+  activeInputs.forEach((inp,i)=>{
     inp.addEventListener('keydown', e=>{
       if(e.key==='Enter'){
         e.preventDefault();
-        if(i<inputs.length-1) inputs[i+1].focus();
+        if(i<activeInputs.length-1) activeInputs[i+1].focus();
         else submitBlanks();
       }
     });
@@ -1924,29 +1975,40 @@ function submitBlanks(){
   const card=currentDeck[currentIdx];
   const inputs=[...document.querySelectorAll('#fc-fill-area .blank-inp')];
   if(inputs.length===0){nextFCCard();return;}
-  // 아직 아무 것도 입력하지 않은 경우 경고
-  const anyFilled=inputs.some(inp=>inp.value.trim().length>0);
+  const activeInputs=inputs.filter(function(inp){return !inp.disabled;});
+  if(activeInputs.length===0){nextFCCard();return;}
+  const anyFilled=activeInputs.some(inp=>inp.value.trim().length>0);
   if(!anyFilled){showToast('빈칸을 하나 이상 입력해주세요.');return;}
 
   let allCorrect=true;
   const results=[];
 
   inputs.forEach(inp=>{
+    if(inp.disabled&&inp.classList.contains('blank-ok')){
+      // 이미 정답 처리된 빈칸 (재시도에서 유지)
+      results.push({ok:true, expected:(inp.dataset.answer||'').trim(), given:inp.value.trim(), idx:parseInt(inp.dataset.idx)});
+      return;
+    }
     inp.disabled=true;
     const expected=(inp.dataset.answer||'').trim();
     const given=inp.value.trim();
-    // 비교: 완전 일치 또는 공백 무시 일치
     const ok = given===expected || given.replace(/\s+/g,'')===expected.replace(/\s+/g,'');
     inp.classList.toggle('blank-ok', ok);
     inp.classList.toggle('blank-ng', !ok);
-    results.push({ok, expected, given});
-    if(!ok) allCorrect=false;
+    const kwIdx=parseInt(inp.dataset.idx);
+    results.push({ok, expected, given, idx:kwIdx});
+    if(!ok){
+      allCorrect=false;
+      blankWrongCounts[kwIdx]=(blankWrongCounts[kwIdx]||0)+1;
+    }
   });
+
+  lastSubmitResults=results;
 
   // 오답인 경우 정답 표시
   if(!allCorrect){
     inputs.forEach((inp,i)=>{
-      if(!results[i].ok){
+      if(inp.classList.contains('blank-ng')&&!inp.nextElementSibling?.classList?.contains('blank-correct-hint')){
         const hint=document.createElement('span');
         hint.className='blank-correct-hint';
         hint.textContent='→ '+results[i].expected;
@@ -1956,12 +2018,12 @@ function submitBlanks(){
   }
 
   document.getElementById('fc-btn-row').style.display='none';
+  document.getElementById('fc-cardview-area').style.display='none';
   const fbArea=document.getElementById('fc-feedback-area');
   fbArea.style.display='block';
 
   if(allCorrect){
     fbArea.innerHTML='<div class="fc-result-banner all-ok">✅ 모든 빈칸 정답! 암기 1회 인정됩니다.</div>';
-    // SM-2 업데이트 (정답: rating=3)
     const wasM=isMastered(card.id);
     const prevReps=db[card.id].fcReps||0;
     db[card.id]=sm2({...db[card.id]},2);
@@ -1972,7 +2034,6 @@ function submitBlanks(){
     if(prevReps===0) sessionStats.newCards++;
     if(!wasM&&isMastered(card.id)) sessionStats.masteryGained++;
 
-    // 다음 복습 예정 표시
     const iv=db[card.id].fcInterval;
     const sched=document.getElementById('fc-next-schedule');
     sched.textContent='다음 복습: '+daysStr(iv)+' 후 ('+iv+'일 간격)';
@@ -1981,32 +2042,163 @@ function submitBlanks(){
     document.getElementById('fc-next-row').style.display='block';
   } else {
     const wrongCount=results.filter(r=>!r.ok).length;
-    fbArea.innerHTML='<div class="fc-result-banner has-ng">❌ '+wrongCount+'개 오답 — 정답을 확인하고 다시 시도하거나 넘어가세요.</div>';
-    // 오답: fcAttempts++, fcWrong++
+    fbArea.innerHTML='<div class="fc-result-banner has-ng">❌ '+wrongCount+'개 오답 — 오답만 다시 시도하거나 카드를 확인하세요.</div>';
     db[card.id].fcAttempts=(db[card.id].fcAttempts||0)+1;
     db[card.id].fcWrong=(db[card.id].fcWrong||0)+1;
     saveDB();
     sessionStats.wrong++;
     document.getElementById('fc-retry-row').style.display='block';
+    var cv2=document.getElementById('fc-cardview-btn2');if(cv2)cv2.style.display='inline-block';
   }
 }
 
 function retryCard(){
-  // 같은 카드를 그대로 다시 (currentIdx 유지)
-  loadFlashcard();
+  // 오답 빈칸만 다시 출제, 정답은 유지
+  const card=currentDeck[currentIdx];
+
+  document.getElementById('fc-feedback-area').style.display='none';
+  document.getElementById('fc-feedback-area').innerHTML='';
+  document.getElementById('fc-btn-row').style.display='flex';
+  document.getElementById('fc-retry-row').style.display='none';
+  document.getElementById('fc-next-row').style.display='none';
+  document.getElementById('fc-next-schedule').style.display='none';
+  document.getElementById('fc-cardview-area').style.display='none';
+  document.getElementById('fc-cardview-btn').textContent='👁 카드보기';
+
+  // 정답 인덱스 수집
+  var correctIdxs={};
+  lastSubmitResults.forEach(function(r){
+    if(r.ok) correctIdxs[r.idx]=r.given;
+  });
+
+  // 빈칸 영역 다시 빌드
+  document.getElementById('fc-fill-area').innerHTML=buildFillHTML(card);
+
+  // 정답 빈칸은 값 넣고 잠금, 오답 빈칸만 활성화
+  var inputs=[...document.querySelectorAll('#fc-fill-area .blank-inp')];
+  inputs.forEach(function(inp){
+    var kwIdx=parseInt(inp.dataset.idx);
+    if(correctIdxs[kwIdx]!==undefined){
+      inp.value=correctIdxs[kwIdx];
+      inp.disabled=true;
+      inp.classList.add('blank-ok');
+      inp.style.opacity='0.6';
+    }
+  });
+
+  // 활성 빈칸에 포커스
+  setTimeout(function(){
+    var first=inputs.find(function(inp){return !inp.disabled;});
+    if(first) first.focus();
+  },80);
+
+  setupBlankKeyEvents(card);
+}
+
+// ── 카드보기 (정답 전체 표시, 2회 이상 오답 키워드 노란색) ──
+function toggleCardView(){
+  var area=document.getElementById('fc-cardview-area');
+  var btn=document.getElementById('fc-cardview-btn');
+  var btn2=document.getElementById('fc-cardview-btn2');
+  if(area.style.display==='none'||!area.style.display||area.style.display===''){
+    var card=currentDeck[currentIdx];
+    area.innerHTML=buildCardViewHTML(card);
+    area.style.display='block';
+    if(btn) btn.textContent='👁 카드닫기';
+    if(btn2) btn2.textContent='👁 카드닫기';
+  } else {
+    area.style.display='none';
+    if(btn) btn.textContent='👁 카드보기';
+    if(btn2) btn2.textContent='👁 카드보기';
+  }
+}
+
+function buildCardViewHTML(card){
+  // 2회 이상 오답 키워드 인덱스 수집
+  var highlightKws={};
+  Object.keys(blankWrongCounts).forEach(function(k){
+    if(blankWrongCounts[k]>=2) highlightKws[parseInt(k)]=true;
+  });
+
+  // 답변 텍스트에서 키워드를 하이라이트로 표시
+  var text=card.a;
+  // <strong> 태그 안의 내용은 유지하면서, 2회+ 오답 키워드에 노란 배경 추가
+  // 역순으로 치환해서 인덱스 안 꼬이게
+  var replacements=[];
+  card.keywords.forEach(function(kw,i){
+    // HTML에서 키워드 위치 찾기 (태그 제거한 텍스트 기준이 아닌, 원본 HTML 내에서)
+    // <strong>keyword</strong> 형태도 처리
+    if(highlightKws[i]){
+      replacements.push({kw:kw, idx:i});
+    }
+  });
+
+  // 단순하게: 전체 답변 HTML을 표시하되, 2회+ 오답 키워드만 노란 span으로 감싸기
+  var html=text;
+  // 역순 처리 (긴 키워드부터, 겹침 방지)
+  var sortedReps=replacements.slice().sort(function(a,b){return b.kw.length-a.kw.length;});
+  sortedReps.forEach(function(rep){
+    // HTML 태그 내부가 아닌 텍스트 노드의 키워드만 치환
+    var escaped=rep.kw.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+    var re=new RegExp('(>|^)([^<]*?)(' + escaped + ')','g');
+    html=html.replace(re, function(match,p1,p2,p3){
+      return p1+p2+'<span style="background:rgba(201,168,76,.35);color:var(--gold2);padding:1px 4px;border-radius:4px;font-weight:700;">'+p3+'</span>';
+    });
+  });
+
+  var headerHtml='<div style="font-size:10px;color:var(--gold);letter-spacing:1.5px;text-transform:uppercase;font-family:DM Mono,monospace;margin-bottom:10px;">📖 정답 전체보기';
+  if(sortedReps.length>0) headerHtml+=' <span style="font-size:10px;color:var(--gold);font-weight:400;">· <span style="background:rgba(201,168,76,.35);padding:1px 5px;border-radius:3px;">노란색</span> = 2회 이상 오답</span>';
+  headerHtml+='</div>';
+
+  return headerHtml+'<div style="line-height:2.0;font-size:14px;color:var(--text);">'+html+'</div>';
 }
 
 function nextFCCard(){
+  fcReviewingPrev=false;
+  fcSavedIdx=-1;
   currentIdx++;
   loadFlashcard();
 }
 
-function skipCard(){currentIdx++;loadFlashcard();}
+function skipCard(){fcReviewingPrev=false;fcSavedIdx=-1;currentIdx++;loadFlashcard();}
+
+function prevFCCard(){
+  if(fcReviewingPrev){
+    // 이미 이전 카드 보는 중 → 더 이전으로
+    if(currentIdx>0){
+      currentIdx--;
+      loadFlashcard();
+    }
+    return;
+  }
+  // 현재 진행 인덱스 저장 후 이전 카드로
+  if(currentIdx>0){
+    fcSavedIdx=currentIdx;
+    fcReviewingPrev=true;
+    currentIdx--;
+    loadFlashcard();
+  }
+}
+
+function returnToCurrentCard(){
+  fcReviewingPrev=false;
+  if(fcSavedIdx>=0){
+    currentIdx=fcSavedIdx;
+    fcSavedIdx=-1;
+  }
+  loadFlashcard();
+}
 
 function updateFCProgress(){
-  const tot=currentDeck.length,pct=tot>0?Math.round(currentIdx/tot*100):0;
+  const tot=currentDeck.length;
+  const progressIdx=fcReviewingPrev?fcSavedIdx:currentIdx;
+  const pct=tot>0?Math.round(progressIdx/tot*100):0;
   document.getElementById('fc-prog-fill').style.width=pct+'%';
-  document.getElementById('fc-counter').textContent=(currentIdx+1)+' / '+tot+'장';
+  if(fcReviewingPrev){
+    document.getElementById('fc-counter').textContent='📖 '+(currentIdx+1)+'/'+tot+'장 복습 중';
+  } else {
+    document.getElementById('fc-counter').textContent=(currentIdx+1)+' / '+tot+'장';
+  }
 }
 
 // ═══════════════════════════════════════════════════════════
