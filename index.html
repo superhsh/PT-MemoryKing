@@ -1970,43 +1970,57 @@ function setupBlankKeyEvents(card){
   const inputs=[...document.querySelectorAll('#fc-fill-area .blank-inp')];
   const activeInputs=inputs.filter(function(inp){return !inp.disabled;});
   activeInputs.forEach((inp,i)=>{
+    // 한글 IME 조합 상태 추적
+    inp.addEventListener('compositionstart', function(){ inp._composing=true; });
+    inp.addEventListener('compositionend', function(){ inp._composing=false; });
+
     inp.addEventListener('keydown', e=>{
+      // IME 조합 중이면 모든 keydown 무시 (한글 첫글자 깨짐 방지)
+      if(e.isComposing || e.keyCode===229 || inp._composing) return;
       if(e.key==='Enter'){
         e.preventDefault();
         if(i<activeInputs.length-1) activeInputs[i+1].focus();
         else submitBlanks();
       }
     });
-    // iOS 키보드 스크롤 보정
-    inp.addEventListener('focus', function(){scrollInputIntoView(inp);});
+
+    // iOS 키보드 스크롤 보정 (IME 조합 중에는 스킵)
+    inp.addEventListener('focus', function(){
+      if(!inp._composing) scrollInputIntoView(inp);
+    });
   });
 }
 
-// ── iOS 가상 키보드 스크롤 보정 ──────────────────────────────
+// ── iOS 가상 키보드 스크롤 보정 (IME-safe) ──────────────────
+let _scrollTimer=null;
 function scrollInputIntoView(el){
-  // 즉시 1회 + 키보드 애니메이션 후 1회 (iOS Safari 대응)
-  setTimeout(function(){
-    el.scrollIntoView({block:'center',behavior:'smooth'});
-  },100);
-  setTimeout(function(){
-    el.scrollIntoView({block:'center',behavior:'smooth'});
-  },400);
+  // 조합 중이면 스크롤하지 않음
+  if(el._composing) return;
+  // 기존 예약된 스크롤 취소 (빠른 포커스 전환 시 중복 방지)
+  if(_scrollTimer) clearTimeout(_scrollTimer);
+  _scrollTimer=setTimeout(function(){
+    if(!el._composing && document.activeElement===el){
+      el.scrollIntoView({block:'center',behavior:'smooth'});
+    }
+    _scrollTimer=null;
+  },300);
 }
 
 // visualViewport resize 이벤트: 키보드 올라올 때 활성 input 재스크롤
 if(window.visualViewport){
+  let _vpTimer=null;
   window.visualViewport.addEventListener('resize',function(){
-    var active=document.activeElement;
-    if(active&&active.classList&&active.classList.contains('blank-inp')){
-      setTimeout(function(){
+    if(_vpTimer) clearTimeout(_vpTimer);
+    _vpTimer=setTimeout(function(){
+      var active=document.activeElement;
+      if(!active) return;
+      // IME 조합 중이면 스크롤하지 않음
+      if(active._composing) return;
+      if(active.classList&&(active.classList.contains('blank-inp')||active.classList.contains('sub-textarea'))){
         active.scrollIntoView({block:'center',behavior:'smooth'});
-      },80);
-    }
-    if(active&&active.classList&&active.classList.contains('sub-textarea')){
-      setTimeout(function(){
-        active.scrollIntoView({block:'center',behavior:'smooth'});
-      },80);
-    }
+      }
+      _vpTimer=null;
+    },200);
   });
 }
 
@@ -2310,7 +2324,9 @@ function loadSubjective(){
   ta.className='sub-textarea';ta.id='sub-textarea';
   ta.placeholder='여기에 답안을 작성하세요...\n예: 의의는 ○○이고, 취지는 ○○이며, 요건은 ①○○ ②○○ ③○○이다.';
   ta.oninput=function(){document.getElementById('sub-char-count').textContent=ta.value.length+'자';};
-  ta.addEventListener('focus',function(){scrollInputIntoView(ta);});
+  ta.addEventListener('compositionstart',function(){ta._composing=true;});
+  ta.addEventListener('compositionend',function(){ta._composing=false;});
+  ta.addEventListener('focus',function(){if(!ta._composing) scrollInputIntoView(ta);});
   container.appendChild(ta);
   if(sub.subAttempts>1&&sub.subCorrect===0){
     const hBtn=document.createElement('button');
