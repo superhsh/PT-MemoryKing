@@ -17,6 +17,7 @@
   --shadow:0 20px 60px rgba(0,0,0,0.6); --radius:16px;
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-padding-bottom:40vh;}
 body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden;}
 .bg-texture{position:fixed;inset:0;pointer-events:none;z-index:0;background:radial-gradient(ellipse 80% 50% at 20% 10%,rgba(201,168,76,.06) 0%,transparent 60%),radial-gradient(ellipse 60% 40% at 80% 80%,rgba(91,138,240,.05) 0%,transparent 60%);}
 .bg-grid{position:fixed;inset:0;pointer-events:none;z-index:0;background-image:linear-gradient(var(--border) 1px,transparent 1px),linear-gradient(90deg,var(--border) 1px,transparent 1px);background-size:48px 48px;opacity:.18;}
@@ -158,6 +159,7 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
 .sub-blank-input.graded-wrong{border-color:var(--red);background:rgba(224,82,82,.07);}
 .sub-textarea{width:100%;background:var(--bg3);border:1.5px solid rgba(155,110,240,.3);border-radius:12px;padding:14px 16px;font-family:'Noto Sans KR',sans-serif;font-size:14px;color:var(--text);outline:none;resize:vertical;min-height:100px;transition:border-color .2s;line-height:1.8;}
 .sub-textarea:focus{border-color:var(--purple);}
+#screen-subjective{padding-bottom:60vh;} /* iOS 키보드 여유 공간 */
 .sub-hint-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;}
 .sub-hint-txt{font-size:11px;color:var(--text3);}
 .sub-char-count{font-family:'DM Mono',monospace;font-size:11px;color:var(--text3);}
@@ -359,6 +361,7 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
 
 /* ─── Fill-in-blank 카드 ─── */
 .fill-card{background:var(--bg2);border:1px solid var(--border);border-radius:20px;padding:28px 28px 22px;box-shadow:var(--shadow);}
+#screen-flashcard{padding-bottom:60vh;} /* iOS 키보드 여유 공간 */
 .fill-card-head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;gap:8px;flex-wrap:wrap;}
 .fill-question{font-family:'Noto Serif KR',serif;font-size:18px;font-weight:700;line-height:1.7;color:var(--text);margin-bottom:8px;}
 .fill-field-label{font-size:11px;color:var(--blue);letter-spacing:1.5px;text-transform:uppercase;font-family:'DM Mono',monospace;margin-bottom:18px;}
@@ -1952,11 +1955,11 @@ function loadFlashcard(){
     cvArea.innerHTML=buildCardViewHTML(card);
     cvArea.style.display='block';
   } else {
-    // 첫 번째 빈칸에 포커스
+    // 첫 번째 빈칸에 포커스 (scrollIntoView는 focus 이벤트에서 처리)
     setTimeout(()=>{
-      const first=document.querySelector('#fc-fill-area .blank-inp');
+      const first=document.querySelector('#fc-fill-area .blank-inp:not([disabled])');
       if(first) first.focus();
-    },80);
+    },120);
 
     // Enter 키로 다음 빈칸 이동 / 마지막에서 제출
     setupBlankKeyEvents(card);
@@ -1974,6 +1977,36 @@ function setupBlankKeyEvents(card){
         else submitBlanks();
       }
     });
+    // iOS 키보드 스크롤 보정
+    inp.addEventListener('focus', function(){scrollInputIntoView(inp);});
+  });
+}
+
+// ── iOS 가상 키보드 스크롤 보정 ──────────────────────────────
+function scrollInputIntoView(el){
+  // 즉시 1회 + 키보드 애니메이션 후 1회 (iOS Safari 대응)
+  setTimeout(function(){
+    el.scrollIntoView({block:'center',behavior:'smooth'});
+  },100);
+  setTimeout(function(){
+    el.scrollIntoView({block:'center',behavior:'smooth'});
+  },400);
+}
+
+// visualViewport resize 이벤트: 키보드 올라올 때 활성 input 재스크롤
+if(window.visualViewport){
+  window.visualViewport.addEventListener('resize',function(){
+    var active=document.activeElement;
+    if(active&&active.classList&&active.classList.contains('blank-inp')){
+      setTimeout(function(){
+        active.scrollIntoView({block:'center',behavior:'smooth'});
+      },80);
+    }
+    if(active&&active.classList&&active.classList.contains('sub-textarea')){
+      setTimeout(function(){
+        active.scrollIntoView({block:'center',behavior:'smooth'});
+      },80);
+    }
   });
 }
 
@@ -2277,6 +2310,7 @@ function loadSubjective(){
   ta.className='sub-textarea';ta.id='sub-textarea';
   ta.placeholder='여기에 답안을 작성하세요...\n예: 의의는 ○○이고, 취지는 ○○이며, 요건은 ①○○ ②○○ ③○○이다.';
   ta.oninput=function(){document.getElementById('sub-char-count').textContent=ta.value.length+'자';};
+  ta.addEventListener('focus',function(){scrollInputIntoView(ta);});
   container.appendChild(ta);
   if(sub.subAttempts>1&&sub.subCorrect===0){
     const hBtn=document.createElement('button');
