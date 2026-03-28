@@ -17,7 +17,7 @@
   --shadow:0 20px 60px rgba(0,0,0,0.6); --radius:16px;
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
-html{scroll-padding-bottom:40vh;}
+html{}
 body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;min-height:100dvh;overflow-x:hidden;-webkit-text-size-adjust:100%;-webkit-tap-highlight-color:transparent;}
 .bg-texture{position:fixed;inset:0;pointer-events:none;z-index:0;background:radial-gradient(ellipse 80% 50% at 20% 10%,rgba(201,168,76,.06) 0%,transparent 60%),radial-gradient(ellipse 60% 40% at 80% 80%,rgba(91,138,240,.05) 0%,transparent 60%);}
 .bg-grid{position:fixed;inset:0;pointer-events:none;z-index:0;background-image:linear-gradient(var(--border) 1px,transparent 1px),linear-gradient(90deg,var(--border) 1px,transparent 1px);background-size:48px 48px;opacity:.18;}
@@ -159,7 +159,6 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
 .sub-blank-input.graded-wrong{border-color:var(--red);background:rgba(224,82,82,.07);}
 .sub-textarea{width:100%;background:var(--bg3);border:1.5px solid rgba(155,110,240,.3);border-radius:12px;padding:14px 16px;font-family:'Noto Sans KR',sans-serif;font-size:14px;color:var(--text);outline:none;resize:vertical;min-height:100px;transition:border-color .2s;line-height:1.8;}
 .sub-textarea:focus{border-color:var(--purple);}
-#screen-subjective{padding-bottom:60vh;} /* iOS 키보드 여유 공간 */
 .sub-hint-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;}
 .sub-hint-txt{font-size:11px;color:var(--text3);}
 .sub-char-count{font-family:'DM Mono',monospace;font-size:11px;color:var(--text3);}
@@ -362,7 +361,6 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
 
 /* ─── Fill-in-blank 카드 ─── */
 .fill-card{background:var(--bg2);border:1px solid var(--border);border-radius:16px;padding:20px 16px 18px;box-shadow:var(--shadow);}
-#screen-flashcard{padding-bottom:60vh;} /* iOS 키보드 여유 공간 */
 .fill-card-head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;gap:6px;flex-wrap:wrap;}
 .fill-question{font-family:'Noto Serif KR',serif;font-size:16px;font-weight:700;line-height:1.7;color:var(--text);margin-bottom:6px;}
 .fill-field-label{font-size:10px;color:var(--blue);letter-spacing:1px;text-transform:uppercase;font-family:'DM Mono',monospace;margin-bottom:14px;}
@@ -1957,7 +1955,7 @@ function loadFlashcard(){
     cvArea.innerHTML=buildCardViewHTML(card);
     cvArea.style.display='block';
   } else {
-    // 첫 번째 빈칸에 포커스 (scrollIntoView는 focus 이벤트에서 처리)
+    // 첫 번째 빈칸에 포커스
     setTimeout(()=>{
       const first=document.querySelector('#fc-fill-area .blank-inp:not([disabled])');
       if(first) first.focus();
@@ -1977,7 +1975,6 @@ function setupBlankKeyEvents(card){
     inp.addEventListener('compositionend', function(){ inp._composing=false; });
 
     inp.addEventListener('keydown', e=>{
-      // IME 조합 중이면 모든 keydown 무시 (한글 첫글자 깨짐 방지)
       if(e.isComposing || e.keyCode===229 || inp._composing) return;
       if(e.key==='Enter'){
         e.preventDefault();
@@ -1985,44 +1982,6 @@ function setupBlankKeyEvents(card){
         else submitBlanks();
       }
     });
-
-    // iOS 키보드 스크롤 보정 (IME 조합 중에는 스킵)
-    inp.addEventListener('focus', function(){
-      if(!inp._composing) scrollInputIntoView(inp);
-    });
-  });
-}
-
-// ── iOS 가상 키보드 스크롤 보정 (IME-safe) ──────────────────
-let _scrollTimer=null;
-function scrollInputIntoView(el){
-  // 조합 중이면 스크롤하지 않음
-  if(el._composing) return;
-  // 기존 예약된 스크롤 취소 (빠른 포커스 전환 시 중복 방지)
-  if(_scrollTimer) clearTimeout(_scrollTimer);
-  _scrollTimer=setTimeout(function(){
-    if(!el._composing && document.activeElement===el){
-      el.scrollIntoView({block:'center',behavior:'smooth'});
-    }
-    _scrollTimer=null;
-  },300);
-}
-
-// visualViewport resize 이벤트: 키보드 올라올 때 활성 input 재스크롤
-if(window.visualViewport){
-  let _vpTimer=null;
-  window.visualViewport.addEventListener('resize',function(){
-    if(_vpTimer) clearTimeout(_vpTimer);
-    _vpTimer=setTimeout(function(){
-      var active=document.activeElement;
-      if(!active) return;
-      // IME 조합 중이면 스크롤하지 않음
-      if(active._composing) return;
-      if(active.classList&&(active.classList.contains('blank-inp')||active.classList.contains('sub-textarea'))){
-        active.scrollIntoView({block:'center',behavior:'smooth'});
-      }
-      _vpTimer=null;
-    },200);
   });
 }
 
@@ -2326,9 +2285,6 @@ function loadSubjective(){
   ta.className='sub-textarea';ta.id='sub-textarea';
   ta.placeholder='여기에 답안을 작성하세요...\n예: 의의는 ○○이고, 취지는 ○○이며, 요건은 ①○○ ②○○ ③○○이다.';
   ta.oninput=function(){document.getElementById('sub-char-count').textContent=ta.value.length+'자';};
-  ta.addEventListener('compositionstart',function(){ta._composing=true;});
-  ta.addEventListener('compositionend',function(){ta._composing=false;});
-  ta.addEventListener('focus',function(){if(!ta._composing) scrollInputIntoView(ta);});
   container.appendChild(ta);
   if(sub.subAttempts>1&&sub.subCorrect===0){
     const hBtn=document.createElement('button');
