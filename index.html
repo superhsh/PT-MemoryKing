@@ -2,7 +2,9 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-widget=resizes-content">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>特許法 마스터 — Mobile ver.</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;600;700;900&family=Noto+Sans+KR:wght@300;400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -17,7 +19,14 @@
   --shadow:0 20px 60px rgba(0,0,0,0.6); --radius:16px;
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
-html{}
+/* iOS PWA 독립모드: body 스크롤 잠금 클래스 */
+html.input-screen-active,
+html.input-screen-active body{
+  overflow:hidden!important;
+  position:fixed!important;
+  width:100%!important;
+  height:100%!important;
+}
 body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;min-height:100dvh;overflow-x:hidden;-webkit-text-size-adjust:100%;-webkit-tap-highlight-color:transparent;}
 .bg-texture{position:fixed;inset:0;pointer-events:none;z-index:0;background:radial-gradient(ellipse 80% 50% at 20% 10%,rgba(201,168,76,.06) 0%,transparent 60%),radial-gradient(ellipse 60% 40% at 80% 80%,rgba(91,138,240,.05) 0%,transparent 60%);}
 .bg-grid{position:fixed;inset:0;pointer-events:none;z-index:0;background-image:linear-gradient(var(--border) 1px,transparent 1px),linear-gradient(90deg,var(--border) 1px,transparent 1px);background-size:48px 48px;opacity:.18;}
@@ -25,6 +34,25 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
 #app{position:relative;z-index:1;max-width:600px;margin:0 auto;padding:16px 12px;}
 .screen{display:none;}
 .screen.active{display:block;animation:fadeUp .4s ease;}
+/* 입력 화면: 뷰포트 전체를 덮는 독립 스크롤 컨테이너 */
+#screen-flashcard.active,
+#screen-subjective.active,
+#screen-add-card.active{
+  display:block;
+  position:fixed;
+  top:0;left:0;right:0;bottom:0;
+  z-index:50;
+  overflow-y:auto;
+  overscroll-behavior:contain;
+  -webkit-overflow-scrolling:touch;
+  background:var(--bg);
+  padding:16px 12px 140px;
+}
+#screen-flashcard.active>*,
+#screen-subjective.active>*,
+#screen-add-card.active>*{
+  max-width:600px;margin-left:auto;margin-right:auto;
+}
 @keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
 
 /* ── Header ── */
@@ -1982,6 +2010,29 @@ function setupBlankKeyEvents(card){
         else submitBlanks();
       }
     });
+
+    // iOS PWA: 포커스 시 window 스크롤 강제 리셋
+    inp.addEventListener('focus', function(){ iosResetScroll(inp); });
+  });
+}
+
+// ── iOS PWA 스크롤 리셋 ──────────────────────────────────
+function iosResetScroll(el){
+  // iOS가 window를 스크롤한 직후 되돌리고, 컨테이너 내에서만 스크롤
+  window.scrollTo(0,0);
+  requestAnimationFrame(function(){
+    window.scrollTo(0,0);
+    requestAnimationFrame(function(){
+      window.scrollTo(0,0);
+      // 고정 컨테이너 내에서 해당 input이 보이도록 컨테이너만 스크롤
+      var container=el.closest('.screen.active');
+      if(container){
+        var elRect=el.getBoundingClientRect();
+        var cH=container.clientHeight;
+        var targetScroll=container.scrollTop+(elRect.top-cH*0.35);
+        container.scrollTop=Math.max(0,targetScroll);
+      }
+    });
   });
 }
 
@@ -3102,11 +3153,20 @@ updateRoutineSlots();
 
 // Override showScreen to handle new screens
 var _origShowScreen=showScreen;
+var _inputScreenIds=['screen-flashcard','screen-subjective','screen-add-card'];
 showScreen=function(id){
-  // Also handle new screens
   document.querySelectorAll('.screen').forEach(function(s){s.classList.remove('active');});
   var el=document.getElementById(id);
   if(el) el.classList.add('active');
+
+  // iOS PWA: 입력 화면에서 body 스크롤 잠금
+  if(_inputScreenIds.indexOf(id)>=0){
+    document.documentElement.classList.add('input-screen-active');
+    window.scrollTo(0,0);
+  } else {
+    document.documentElement.classList.remove('input-screen-active');
+  }
+
   if(id==='screen-home'){stopSessionTimer();updateHome();updateRoutineSlots();renderDday();updateCustomCardCount();}
   if(id==='screen-progress') renderProgress('all');
   if(id==='screen-curve') renderCurveScreen();
