@@ -1845,6 +1845,12 @@ function escapeHTML(s){
   return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
+// ── iPadOS 한글 IME 첫글자 버그 대응: Zero-Width Space 버퍼 ──
+// iOS Safari + 외부키보드에서 빈 input의 첫 키 입력이 compositionstart 이전에
+// 직접 커밋되는 WebKit 버그를 우회. ZWS를 미리 넣어 "기존 텍스트에 추가" 경로를 타게 함.
+var ZWS='\u200B';
+function stripZWS(s){ return s.replace(/\u200B/g,''); }
+
 // 답안 텍스트에서 키워드를 빈칸 input으로 교체
 function buildFillHTML(card){
   // HTML 태그 제거 후 줄바꿈 보존
@@ -1875,7 +1881,7 @@ function buildFillHTML(card){
       if(!m) return part;
       var w = Math.max(70, m.kw.length * 22) + 'px';
       var placeholder = '_'.repeat(Math.min(m.kw.length, 6));
-      return '<input class="blank-inp" id="bi'+m.i+'" data-idx="'+m.i+'" data-answer="'+escapeAttr(m.kw)+'" style="width:'+w+'" placeholder="'+placeholder+'" autocomplete="off" spellcheck="false">';
+      return '<input class="blank-inp" id="bi'+m.i+'" data-idx="'+m.i+'" data-answer="'+escapeAttr(m.kw)+'" style="width:'+w+'" value="'+ZWS+'" placeholder="'+placeholder+'" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">';
     } else {
       // 일반 텍스트 → HTML 이스케이프
       return escapeHTML(part);
@@ -1891,7 +1897,7 @@ function buildFillHTML(card){
     missing.forEach(i=>{
       const kw = card.keywords[i];
       const w = Math.max(80, kw.length * 22) + 'px';
-      extra += '<div style="margin-top:6px;font-size:12px;color:var(--text3);">• <input class="blank-inp" id="bi'+i+'" data-idx="'+i+'" data-answer="'+escapeAttr(kw)+'" style="width:'+w+'" placeholder="키워드 입력" autocomplete="off"></div>';
+      extra += '<div style="margin-top:6px;font-size:12px;color:var(--text3);">• <input class="blank-inp" id="bi'+i+'" data-idx="'+i+'" data-answer="'+escapeAttr(kw)+'" style="width:'+w+'" value="'+ZWS+'" placeholder="키워드 입력" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></div>';
     });
   }
 
@@ -2009,10 +2015,27 @@ function setupBlankKeyEvents(card){
         if(i<activeInputs.length-1) activeInputs[i+1].focus();
         else submitBlanks();
       }
+      // Backspace가 ZWS만 남았을 때 삭제 방지
+      if(e.key==='Backspace' && stripZWS(inp.value)===''){
+        e.preventDefault();
+      }
     });
 
-    // iOS PWA: 포커스 시 window 스크롤 강제 리셋
-    inp.addEventListener('focus', function(){ iosResetScroll(inp); });
+    // ZWS 보호: 사용자가 전체 선택 후 삭제해도 ZWS 복원
+    inp.addEventListener('input', function(){
+      if(!inp._composing && inp.value.indexOf(ZWS)<0){
+        inp.value=ZWS+inp.value;
+        inp.setSelectionRange(inp.value.length, inp.value.length);
+      }
+    });
+
+    // 포커스 시 커서를 ZWS 뒤에 위치 + iOS 스크롤 리셋
+    inp.addEventListener('focus', function(){
+      if(inp.value===ZWS){
+        setTimeout(function(){ inp.setSelectionRange(1,1); },0);
+      }
+      iosResetScroll(inp);
+    });
   });
 }
 
@@ -2042,7 +2065,7 @@ function submitBlanks(){
   if(inputs.length===0){nextFCCard();return;}
   const activeInputs=inputs.filter(function(inp){return !inp.disabled;});
   if(activeInputs.length===0){nextFCCard();return;}
-  const anyFilled=activeInputs.some(inp=>inp.value.trim().length>0);
+  const anyFilled=activeInputs.some(inp=>stripZWS(inp.value).trim().length>0);
   if(!anyFilled){showToast('빈칸을 하나 이상 입력해주세요.');return;}
 
   let allCorrect=true;
@@ -2050,13 +2073,12 @@ function submitBlanks(){
 
   inputs.forEach(inp=>{
     if(inp.disabled&&inp.classList.contains('blank-ok')){
-      // 이미 정답 처리된 빈칸 (재시도에서 유지)
-      results.push({ok:true, expected:(inp.dataset.answer||'').trim(), given:inp.value.trim(), idx:parseInt(inp.dataset.idx)});
+      results.push({ok:true, expected:(inp.dataset.answer||'').trim(), given:stripZWS(inp.value).trim(), idx:parseInt(inp.dataset.idx)});
       return;
     }
     inp.disabled=true;
     const expected=(inp.dataset.answer||'').trim();
-    const given=inp.value.trim();
+    const given=stripZWS(inp.value).trim();
     const ok = given===expected || given.replace(/\s+/g,'')===expected.replace(/\s+/g,'');
     inp.classList.toggle('blank-ok', ok);
     inp.classList.toggle('blank-ng', !ok);
