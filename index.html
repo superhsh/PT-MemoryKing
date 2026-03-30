@@ -395,7 +395,7 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
 .fill-answer-area{background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:16px 14px;line-height:2.4;font-size:14px;color:var(--text2);word-break:keep-all;}
 .fill-answer-area strong{color:var(--text);}
 
-/* 빈칸 입력 필드 (터치 최적화) */
+/* 빈칸 입력 필드: contenteditable span (iOS IME 호환) */
 .blank-inp{
   display:inline-block;
   background:var(--bg);
@@ -407,16 +407,23 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
   color:var(--text);
   outline:none;
   min-width:80px;
-  min-height:40px;
+  min-height:28px;
   vertical-align:middle;
   transition:border-color .2s,background .2s;
   margin:3px 4px;
   text-align:center;
+  cursor:text;
+  -webkit-user-modify:read-write-plaintext-only;
+  word-break:keep-all;
+  white-space:nowrap;
+  overflow:hidden;
+  line-height:1.6;
 }
+.blank-inp:empty::before{content:attr(data-placeholder);color:var(--text3);pointer-events:none;}
 .blank-inp:focus{border-color:var(--gold);background:rgba(201,168,76,.06);}
-.blank-inp.blank-ok{border-color:var(--green);background:rgba(82,201,122,.15);color:var(--green);font-weight:700;pointer-events:none;}
-.blank-inp.blank-ng{border-color:var(--red);background:rgba(224,82,82,.15);color:var(--red);text-decoration:line-through;pointer-events:none;}
-.blank-inp:disabled{cursor:default;}
+.blank-inp.blank-ok{border-color:var(--green);background:rgba(82,201,122,.15);color:var(--green);font-weight:700;pointer-events:none;-webkit-user-modify:read-only;}
+.blank-inp.blank-ng{border-color:var(--red);background:rgba(224,82,82,.15);color:var(--red);text-decoration:line-through;pointer-events:none;-webkit-user-modify:read-only;}
+.blank-inp[data-disabled="true"]{cursor:default;-webkit-user-modify:read-only;pointer-events:none;}
 
 /* 오답 정답 표시 */
 .blank-correct-hint{display:inline-block;background:rgba(82,201,122,.15);border:1px solid var(--green);border-radius:6px;padding:1px 8px;font-size:12px;color:var(--green);margin-left:4px;vertical-align:middle;}
@@ -1845,13 +1852,11 @@ function escapeHTML(s){
   return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
-// ── iPadOS 한글 IME 첫글자 버그 대응: Zero-Width Space 버퍼 ──
-// iOS Safari + 외부키보드에서 빈 input의 첫 키 입력이 compositionstart 이전에
-// 직접 커밋되는 WebKit 버그를 우회. ZWS를 미리 넣어 "기존 텍스트에 추가" 경로를 타게 함.
-var ZWS='\u200B';
-function stripZWS(s){ return s.replace(/\u200B/g,''); }
+// ── contenteditable 빈칸 값 읽기 헬퍼 ──
+function getBlankValue(el){ return (el.textContent||'').trim(); }
+function setBlankValue(el,v){ el.textContent=v; }
 
-// 답안 텍스트에서 키워드를 빈칸 input으로 교체
+// 답안 텍스트에서 키워드를 빈칸 contenteditable span으로 교체
 function buildFillHTML(card){
   // HTML 태그 제거 후 줄바꿈 보존
   let text = card.a
@@ -1879,9 +1884,9 @@ function buildFillHTML(card){
       // 마커 → input 엘리먼트로 교체
       var m = markers.find(function(mk){return mk.marker===part;});
       if(!m) return part;
-      var w = Math.max(70, m.kw.length * 22) + 'px';
-      var placeholder = '_'.repeat(Math.min(m.kw.length, 6));
-      return '<input class="blank-inp" id="bi'+m.i+'" data-idx="'+m.i+'" data-answer="'+escapeAttr(m.kw)+'" style="width:'+w+'" value="'+ZWS+'" placeholder="'+placeholder+'" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">';
+      var w = Math.max(80, m.kw.length * 22) + 'px';
+      var ph = '_'.repeat(Math.min(m.kw.length, 6));
+      return '<span class="blank-inp" id="bi'+m.i+'" data-idx="'+m.i+'" data-answer="'+escapeAttr(m.kw)+'" data-placeholder="'+ph+'" style="min-width:'+w+'" contenteditable="true" inputmode="text"></span>';
     } else {
       // 일반 텍스트 → HTML 이스케이프
       return escapeHTML(part);
@@ -1897,7 +1902,7 @@ function buildFillHTML(card){
     missing.forEach(i=>{
       const kw = card.keywords[i];
       const w = Math.max(80, kw.length * 22) + 'px';
-      extra += '<div style="margin-top:6px;font-size:12px;color:var(--text3);">• <input class="blank-inp" id="bi'+i+'" data-idx="'+i+'" data-answer="'+escapeAttr(kw)+'" style="width:'+w+'" value="'+ZWS+'" placeholder="키워드 입력" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></div>';
+      extra += '<div style="margin-top:6px;font-size:12px;color:var(--text3);">• <span class="blank-inp" id="bi'+i+'" data-idx="'+i+'" data-answer="'+escapeAttr(kw)+'" data-placeholder="키워드 입력" style="min-width:'+w+'" contenteditable="true" inputmode="text"></span></div>';
     });
   }
 
@@ -1978,8 +1983,9 @@ function loadFlashcard(){
     var inputs=[...document.querySelectorAll('#fc-fill-area .blank-inp')];
     inputs.forEach(function(inp){
       var answer=(inp.dataset.answer||'').trim();
-      inp.value=answer;
-      inp.disabled=true;
+      setBlankValue(inp,answer);
+      inp.setAttribute('contenteditable','false');
+      inp.setAttribute('data-disabled','true');
       inp.classList.add('blank-ok');
       inp.style.opacity='0.85';
     });
@@ -1991,7 +1997,7 @@ function loadFlashcard(){
   } else {
     // 첫 번째 빈칸에 포커스
     setTimeout(()=>{
-      const first=document.querySelector('#fc-fill-area .blank-inp:not([disabled])');
+      const first=document.querySelector('#fc-fill-area .blank-inp:not([data-disabled="true"])');
       if(first) first.focus();
     },120);
 
@@ -2002,7 +2008,7 @@ function loadFlashcard(){
 
 function setupBlankKeyEvents(card){
   const inputs=[...document.querySelectorAll('#fc-fill-area .blank-inp')];
-  const activeInputs=inputs.filter(function(inp){return !inp.disabled;});
+  const activeInputs=inputs.filter(function(inp){return inp.getAttribute('data-disabled')!=='true';});
   activeInputs.forEach((inp,i)=>{
     // 한글 IME 조합 상태 추적
     inp.addEventListener('compositionstart', function(){ inp._composing=true; });
@@ -2015,27 +2021,17 @@ function setupBlankKeyEvents(card){
         if(i<activeInputs.length-1) activeInputs[i+1].focus();
         else submitBlanks();
       }
-      // Backspace가 ZWS만 남았을 때 삭제 방지
-      if(e.key==='Backspace' && stripZWS(inp.value)===''){
-        e.preventDefault();
-      }
     });
 
-    // ZWS 보호: 사용자가 전체 선택 후 삭제해도 ZWS 복원
-    inp.addEventListener('input', function(){
-      if(!inp._composing && inp.value.indexOf(ZWS)<0){
-        inp.value=ZWS+inp.value;
-        inp.setSelectionRange(inp.value.length, inp.value.length);
-      }
+    // contenteditable에서 붙여넣기 시 plain text로 강제
+    inp.addEventListener('paste', function(e){
+      e.preventDefault();
+      var text=(e.clipboardData||window.clipboardData).getData('text/plain');
+      document.execCommand('insertText',false,text);
     });
 
-    // 포커스 시 커서를 ZWS 뒤에 위치 + iOS 스크롤 리셋
-    inp.addEventListener('focus', function(){
-      if(inp.value===ZWS){
-        setTimeout(function(){ inp.setSelectionRange(1,1); },0);
-      }
-      iosResetScroll(inp);
-    });
+    // iOS PWA: 포커스 시 window 스크롤 강제 리셋
+    inp.addEventListener('focus', function(){ iosResetScroll(inp); });
   });
 }
 
@@ -2063,22 +2059,23 @@ function submitBlanks(){
   const card=currentDeck[currentIdx];
   const inputs=[...document.querySelectorAll('#fc-fill-area .blank-inp')];
   if(inputs.length===0){nextFCCard();return;}
-  const activeInputs=inputs.filter(function(inp){return !inp.disabled;});
+  const activeInputs=inputs.filter(function(inp){return inp.getAttribute('data-disabled')!=='true';});
   if(activeInputs.length===0){nextFCCard();return;}
-  const anyFilled=activeInputs.some(inp=>stripZWS(inp.value).trim().length>0);
+  const anyFilled=activeInputs.some(function(inp){return getBlankValue(inp).length>0;});
   if(!anyFilled){showToast('빈칸을 하나 이상 입력해주세요.');return;}
 
   let allCorrect=true;
   const results=[];
 
   inputs.forEach(inp=>{
-    if(inp.disabled&&inp.classList.contains('blank-ok')){
-      results.push({ok:true, expected:(inp.dataset.answer||'').trim(), given:stripZWS(inp.value).trim(), idx:parseInt(inp.dataset.idx)});
+    if(inp.getAttribute('data-disabled')==='true'&&inp.classList.contains('blank-ok')){
+      results.push({ok:true, expected:(inp.dataset.answer||'').trim(), given:getBlankValue(inp), idx:parseInt(inp.dataset.idx)});
       return;
     }
-    inp.disabled=true;
+    inp.setAttribute('contenteditable','false');
+    inp.setAttribute('data-disabled','true');
     const expected=(inp.dataset.answer||'').trim();
-    const given=stripZWS(inp.value).trim();
+    const given=getBlankValue(inp);
     const ok = given===expected || given.replace(/\s+/g,'')===expected.replace(/\s+/g,'');
     inp.classList.toggle('blank-ok', ok);
     inp.classList.toggle('blank-ng', !ok);
@@ -2166,8 +2163,9 @@ function retryCard(){
   inputs.forEach(function(inp){
     var kwIdx=parseInt(inp.dataset.idx);
     if(correctIdxs[kwIdx]!==undefined){
-      inp.value=correctIdxs[kwIdx];
-      inp.disabled=true;
+      setBlankValue(inp,correctIdxs[kwIdx]);
+      inp.setAttribute('contenteditable','false');
+      inp.setAttribute('data-disabled','true');
       inp.classList.add('blank-ok');
       inp.style.opacity='0.6';
     }
@@ -2175,7 +2173,7 @@ function retryCard(){
 
   // 활성 빈칸에 포커스
   setTimeout(function(){
-    var first=inputs.find(function(inp){return !inp.disabled;});
+    var first=inputs.find(function(inp){return inp.getAttribute('data-disabled')!=='true';});
     if(first) first.focus();
   },80);
 
