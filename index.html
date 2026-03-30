@@ -2030,8 +2030,21 @@ function setupBlankKeyEvents(card){
       document.execCommand('insertText',false,text);
     });
 
-    // iOS PWA: 포커스 시 window 스크롤 강제 리셋
-    inp.addEventListener('focus', function(){ iosResetScroll(inp); });
+    // iOS PWA: 포커스 시 빈 칸에 스페이스 자동 삽입 (IME 첫글자 버그 방지)
+    // + window 스크롤 강제 리셋
+    inp.addEventListener('focus', function(){
+      if(getBlankValue(inp)===''){
+        inp.textContent=' ';
+        // 커서를 스페이스 뒤에 배치
+        var range=document.createRange();
+        var sel=window.getSelection();
+        range.selectNodeContents(inp);
+        range.collapse(false);
+        sel.removeAllRanges();
+        sel.addRange(range);
+      }
+      iosResetScroll(inp);
+    });
   });
 }
 
