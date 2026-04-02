@@ -580,6 +580,12 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
       <div class="mode-desc">FC·주관식 트랙 진도<br>다음 복습일 전체 조회</div>
       <div class="mode-badge badge-gold">STATS</div>
     </div>
+    <div class="mode-card" style="border-color:var(--gold);" onclick="showScreen('screen-search')">
+      <div class="mode-icon">🔍</div>
+      <div class="mode-title">키워드 검색</div>
+      <div class="mode-desc">키워드로 카드를 검색하고<br>플래시카드·주관식·수정</div>
+      <div class="mode-badge badge-gold">SEARCH</div>
+    </div>
     <div class="mode-card" style="border-color:var(--green);background:rgba(82,201,122,.04);" onclick="showScreen('screen-add-card')">
       <div class="mode-icon">➕</div>
       <div class="mode-title">카드 추가</div>
@@ -804,6 +810,21 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
 </div>
 
 </div><!-- /app -->
+
+<!-- ═══ SEARCH SCREEN ═══ -->
+<div id="screen-search" class="screen">
+  <div class="fc-header" style="margin-bottom:16px;">
+    <button class="fc-back-btn" onclick="goHome()">← 홈</button>
+    <div style="flex:1;text-align:center;font-family:'Noto Serif KR',serif;font-size:15px;font-weight:700;color:var(--gold);">🔍 키워드 검색</div>
+  </div>
+
+  <div style="position:relative;margin-bottom:16px;">
+    <input type="text" id="search-input" placeholder="법조문, 키워드, 질문 내용 검색..." style="width:100%;background:var(--bg2);border:1.5px solid var(--border);border-radius:12px;padding:14px 44px 14px 16px;color:var(--text);font-size:15px;font-family:'Noto Sans KR',sans-serif;outline:none;box-sizing:border-box;transition:border-color .2s;" onfocus="this.style.borderColor='var(--gold)'" onblur="this.style.borderColor='var(--border)'">
+    <span style="position:absolute;right:14px;top:50%;transform:translateY(-50%);font-size:18px;pointer-events:none;">🔍</span>
+  </div>
+  <div id="search-result-info" style="font-size:11px;color:var(--text3);margin-bottom:12px;font-family:'DM Mono',monospace;"></div>
+  <div id="search-results" style="display:flex;flex-direction:column;gap:8px;"></div>
+</div>
 
 <!-- ═══ ADD CARD SCREEN ═══ -->
 <div id="screen-add-card" class="screen">
@@ -3219,6 +3240,132 @@ renderDday();
 updateRoutineSlots();
 
 // Override showScreen to handle new screens
+// ═══════════════════════════════════════════════════════════
+//  KEYWORD SEARCH
+// ═══════════════════════════════════════════════════════════
+var _searchDebounce=null;
+function initSearchScreen(){
+  var inp=document.getElementById('search-input');
+  if(!inp) return;
+  inp.value='';
+  document.getElementById('search-results').innerHTML='';
+  document.getElementById('search-result-info').textContent='키워드, 법조문, 질문 내용으로 검색하세요.';
+  // 실시간 검색
+  inp.oninput=function(){
+    if(_searchDebounce) clearTimeout(_searchDebounce);
+    _searchDebounce=setTimeout(function(){ runSearch(inp.value); },200);
+  };
+  setTimeout(function(){ inp.focus(); },150);
+}
+
+function runSearch(query){
+  var grid=document.getElementById('search-results');
+  var info=document.getElementById('search-result-info');
+  grid.innerHTML='';
+  var q=query.trim().toLowerCase();
+  if(q.length<1){
+    info.textContent='키워드, 법조문, 질문 내용으로 검색하세요.';
+    return;
+  }
+  // 여러 단어 AND 검색
+  var terms=q.split(/\s+/).filter(function(t){return t.length>0;});
+  var results=CARDS.filter(function(card){
+    var haystack=(card.q+' '+card.law+' '+card.sub+' '+card.cat+' '+card.field+' '+card.keywords.join(' ')+' '+card.a.replace(/<[^>]+>/g,'')).toLowerCase();
+    return terms.every(function(t){return haystack.indexOf(t)>=0;});
+  });
+  info.textContent=results.length>0?results.length+'개 카드 발견 ('+terms.join(' + ')+')':'검색 결과 없음';
+  if(results.length===0){
+    grid.innerHTML='<div style="text-align:center;color:var(--text3);padding:30px;">일치하는 카드가 없습니다.</div>';
+    return;
+  }
+  results.forEach(function(card){
+    var s=db[card.id];
+    var mastered=isMastered(card.id);
+    var isNew=!s||s.fcReps===0;
+    var isCustom=!!card._custom;
+    var tag=mastered?'<span class="mastered-tag">⭐완료</span>':isNew?'<span class="new-tag">신규</span>':'<span class="learning-tag">학습중</span>';
+    var ret=computeRetention(s);
+    var retStr=ret!==null?'<span style="font-size:9px;font-family:DM Mono,monospace;color:'+getRetentionColor(ret)+';">'+ret+'%</span>':'';
+
+    // 검색어 하이라이트용 질문 텍스트
+    var qDisplay=escapeHTML(card.q);
+    terms.forEach(function(t){
+      var re=new RegExp('('+t.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','gi');
+      qDisplay=qDisplay.replace(re,'<mark style="background:rgba(201,168,76,.3);color:var(--gold2);padding:0 2px;border-radius:2px;">$1</mark>');
+    });
+
+    var wrapper=document.createElement('div');
+    wrapper.style.cssText='margin-bottom:2px;';
+
+    var row=document.createElement('div');
+    row.style.cssText='background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:12px 14px;cursor:pointer;transition:border-color .2s;';
+    row.innerHTML=
+      '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:4px;">'+
+        '<span style="font-family:DM Mono,monospace;font-size:10px;color:var(--gold);">'+escapeHTML(card.law)+'</span>'+
+        '<span style="font-size:10px;color:var(--text3);">'+escapeHTML(card.cat)+' · '+escapeHTML(card.sub)+'</span>'+
+        (isCustom?'<span style="font-family:DM Mono,monospace;font-size:9px;color:var(--green);background:rgba(82,201,122,.12);padding:1px 5px;border-radius:3px;">CUSTOM</span>':'')+
+        tag+' '+retStr+
+      '</div>'+
+      '<div style="font-size:13px;color:var(--text);line-height:1.5;">'+qDisplay+'</div>'+
+      '<div style="font-size:10px;color:var(--text3);margin-top:3px;">키워드: '+card.keywords.map(function(k){
+        var kLow=k.toLowerCase();
+        var hit=terms.some(function(t){return kLow.indexOf(t)>=0;});
+        return hit?'<span style="color:var(--gold);font-weight:700;">'+escapeHTML(k)+'</span>':escapeHTML(k);
+      }).join(', ')+'</div>';
+
+    // 액션 패널
+    var actions=document.createElement('div');
+    actions.className='prog-actions';
+
+    var fcBtn=document.createElement('button');
+    fcBtn.className='pa-btn pa-fc';fcBtn.textContent='🃏 플래시카드';
+    fcBtn.addEventListener('click',function(e){e.stopPropagation();startSingleCard(card.id,'flashcard');});
+    actions.appendChild(fcBtn);
+
+    var subBtn=document.createElement('button');
+    subBtn.className='pa-btn pa-sub';subBtn.textContent='✍️ 주관식';
+    subBtn.addEventListener('click',function(e){e.stopPropagation();startSingleCard(card.id,'subjective');});
+    actions.appendChild(subBtn);
+
+    if(isCustom){
+      var editBtn=document.createElement('button');
+      editBtn.className='pa-btn';
+      editBtn.style.cssText='border-color:var(--green);color:var(--green);';
+      editBtn.textContent='✏️ 수정';
+      editBtn.addEventListener('click',function(e){
+        e.stopPropagation();
+        showScreen('screen-add-card');
+        setTimeout(function(){ editCustomCard(card.id); },100);
+      });
+      actions.appendChild(editBtn);
+    }
+
+    var infoSpan=document.createElement('span');
+    infoSpan.className='pa-info';
+    infoSpan.textContent='FC '+(s?s.fcAttempts||0:0)+'회 · SUB '+(s?s.subAttempts||0:0)+'회';
+    actions.appendChild(infoSpan);
+
+    row.addEventListener('click',function(){
+      var wasOpen=actions.classList.contains('open');
+      grid.querySelectorAll('.prog-actions.open').forEach(function(a){a.classList.remove('open');});
+      if(!wasOpen){
+        actions.classList.add('open');
+        row.style.borderRadius='12px 12px 0 0';
+        row.style.borderColor='var(--gold)';
+      } else {
+        row.style.borderRadius='12px';
+        row.style.borderColor='var(--border)';
+      }
+    });
+    row.addEventListener('mouseenter',function(){if(!actions.classList.contains('open'))row.style.borderColor='var(--gold)';});
+    row.addEventListener('mouseleave',function(){if(!actions.classList.contains('open'))row.style.borderColor='var(--border)';});
+
+    wrapper.appendChild(row);
+    wrapper.appendChild(actions);
+    grid.appendChild(wrapper);
+  });
+}
+
 var _origShowScreen=showScreen;
 var _inputScreenIds=['screen-flashcard','screen-subjective','screen-add-card'];
 showScreen=function(id){
@@ -3237,6 +3384,7 @@ showScreen=function(id){
   if(id==='screen-home'){stopSessionTimer();updateHome();updateRoutineSlots();renderDday();updateCustomCardCount();}
   if(id==='screen-progress') renderProgress('all');
   if(id==='screen-curve') renderCurveScreen();
+  if(id==='screen-search') initSearchScreen();
   if(id==='screen-add-card'){populateAddCatSelect();renderMyCardsList();}
   if(id==='screen-data-io'){
     var infoEl=document.getElementById('export-info');
