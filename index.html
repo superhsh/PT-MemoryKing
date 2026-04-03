@@ -432,6 +432,39 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
 .fc-result-banner{border-radius:12px;padding:14px 18px;margin-bottom:12px;display:flex;align-items:center;gap:12px;font-size:14px;font-weight:700;}
 .fc-result-banner.all-ok{background:rgba(82,201,122,.12);border:1px solid var(--green);color:var(--green);}
 .fc-result-banner.has-ng{background:rgba(224,82,82,.1);border:1px solid var(--red);color:var(--red);}
+
+/* ═══ TTS 음성 재생 ═══ */
+.tts-panel{background:var(--bg2);border:1px solid var(--border);border-radius:16px;padding:20px;margin-bottom:16px;}
+.tts-card-display{background:var(--bg3);border:1px solid var(--border);border-radius:14px;padding:20px 18px;margin-bottom:16px;min-height:120px;transition:border-color .3s;}
+.tts-card-display.speaking{border-color:var(--gold);box-shadow:0 0 20px rgba(201,168,76,.15);}
+.tts-card-display .tts-law{font-family:'DM Mono',monospace;font-size:11px;color:var(--gold);margin-bottom:6px;}
+.tts-card-display .tts-q{font-family:'Noto Serif KR',serif;font-size:16px;font-weight:700;color:var(--text);line-height:1.6;margin-bottom:10px;}
+.tts-card-display .tts-a{font-size:13px;line-height:1.8;color:var(--text2);}
+.tts-card-display .tts-a strong{color:var(--gold2);font-weight:700;}
+.tts-controls{display:flex;gap:10px;justify-content:center;align-items:center;margin:16px 0;flex-wrap:wrap;}
+.tts-ctrl-btn{width:52px;height:52px;border-radius:50%;border:2px solid var(--border);background:var(--bg2);color:var(--text);font-size:22px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .2s;}
+.tts-ctrl-btn:hover{border-color:var(--gold);color:var(--gold);}
+.tts-ctrl-btn.active{border-color:var(--gold);background:var(--gold);color:#0d0f14;}
+.tts-ctrl-btn.play-btn{width:64px;height:64px;font-size:26px;border-width:3px;}
+.tts-setting-row{display:flex;align-items:center;gap:12px;margin-bottom:12px;}
+.tts-setting-label{font-size:12px;color:var(--text2);min-width:60px;white-space:nowrap;}
+.tts-slider{flex:1;-webkit-appearance:none;appearance:none;height:4px;background:var(--border);border-radius:2px;outline:none;}
+.tts-slider::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:var(--gold);cursor:pointer;}
+.tts-setting-val{font-family:'DM Mono',monospace;font-size:12px;color:var(--gold);min-width:36px;text-align:right;}
+.tts-progress-row{display:flex;align-items:center;gap:10px;margin-bottom:16px;}
+.tts-progress-bar{flex:1;height:6px;background:var(--border);border-radius:3px;overflow:hidden;}
+.tts-progress-fill{height:100%;background:linear-gradient(90deg,var(--gold),var(--gold2));border-radius:3px;transition:width .3s;}
+.tts-progress-text{font-family:'DM Mono',monospace;font-size:11px;color:var(--text2);white-space:nowrap;}
+.tts-card-list{max-height:200px;overflow-y:auto;margin-top:12px;}
+.tts-card-item{padding:8px 12px;border-radius:8px;font-size:12px;color:var(--text3);cursor:pointer;transition:all .2s;display:flex;align-items:center;gap:8px;}
+.tts-card-item:hover{background:var(--bg3);color:var(--text);}
+.tts-card-item.current{background:var(--gold-dim);color:var(--gold);font-weight:700;}
+.tts-card-item .tts-ci-num{font-family:'DM Mono',monospace;min-width:22px;}
+.tts-voice-select{width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-size:12px;font-family:'Noto Sans KR',sans-serif;outline:none;}
+.tts-voice-select:focus{border-color:var(--gold);}
+.tts-status{text-align:center;font-size:11px;color:var(--text3);font-family:'DM Mono',monospace;margin-top:8px;min-height:16px;}
+@keyframes tts-pulse{0%,100%{opacity:1;}50%{opacity:.5;}}
+.tts-card-display.speaking .tts-q{animation:tts-pulse 2s ease-in-out infinite;}
 </style>
 </head>
 <body>
@@ -591,6 +624,12 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
       <div class="mode-title">카드 추가</div>
       <div class="mode-desc">새 법조문·판례·요건 등<br>나만의 암기 카드 만들기</div>
       <div class="mode-badge badge-green">CUSTOM</div>
+    </div>
+    <div class="mode-card" style="border-color:#e8c96a;background:rgba(232,201,106,.04);" onclick="startTTS()">
+      <div class="mode-icon">🔊</div>
+      <div class="mode-title">음성 반복 재생</div>
+      <div class="mode-desc">선택한 카드를 깨끗한 음성으로<br>반복 읽기 — 청각 기억 강화</div>
+      <div class="mode-badge badge-gold">TTS</div>
     </div>
     <div class="mode-card" style="border-color:var(--text2);" onclick="showScreen('screen-data-io')">
       <div class="mode-icon">💾</div>
@@ -810,6 +849,92 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
 </div>
 
 </div><!-- /app -->
+
+<!-- ═══ TTS SCREEN ═══ -->
+<div id="screen-tts" class="screen">
+  <div class="fc-header" style="margin-bottom:16px;">
+    <button class="fc-back-btn" onclick="stopTTS();goHome()">← 홈</button>
+    <div style="flex:1;text-align:center;font-family:'Noto Serif KR',serif;font-size:15px;font-weight:700;color:var(--gold);">🔊 음성 반복 재생</div>
+  </div>
+
+  <!-- 진행 표시 -->
+  <div class="tts-progress-row">
+    <div class="tts-progress-bar"><div class="tts-progress-fill" id="tts-prog-fill" style="width:0%"></div></div>
+    <div class="tts-progress-text" id="tts-prog-text">0 / 0</div>
+  </div>
+
+  <!-- 현재 카드 표시 -->
+  <div class="tts-card-display" id="tts-card-display">
+    <div class="tts-law" id="tts-display-law"></div>
+    <div class="tts-q" id="tts-display-q">재생 버튼을 누르면 음성이 시작됩니다.</div>
+    <div class="tts-a" id="tts-display-a"></div>
+  </div>
+
+  <!-- 컨트롤 -->
+  <div class="tts-controls">
+    <button class="tts-ctrl-btn" onclick="ttsPrev()" title="이전 카드">⏮</button>
+    <button class="tts-ctrl-btn play-btn" id="tts-play-btn" onclick="ttsTogglePlay()" title="재생/일시정지">▶</button>
+    <button class="tts-ctrl-btn" onclick="ttsNext()" title="다음 카드">⏭</button>
+    <button class="tts-ctrl-btn" onclick="stopTTS()" title="정지" style="font-size:18px;">⏹</button>
+  </div>
+  <div class="tts-status" id="tts-status">준비됨</div>
+
+  <!-- 설정 패널 -->
+  <div class="tts-panel">
+    <div style="font-size:11px;color:var(--gold);letter-spacing:2px;text-transform:uppercase;font-family:'DM Mono',monospace;margin-bottom:14px;">⚙ 재생 설정</div>
+
+    <div class="tts-setting-row">
+      <span class="tts-setting-label">음성 선택</span>
+      <select class="tts-voice-select" id="tts-voice-select" onchange="ttsChangeVoice()">
+        <option value="">기본 음성</option>
+      </select>
+    </div>
+
+    <div class="tts-setting-row">
+      <span class="tts-setting-label">읽기 속도</span>
+      <input type="range" class="tts-slider" id="tts-rate" min="0.5" max="2" step="0.1" value="0.9" oninput="document.getElementById('tts-rate-val').textContent=this.value+'x'">
+      <span class="tts-setting-val" id="tts-rate-val">0.9x</span>
+    </div>
+
+    <div class="tts-setting-row">
+      <span class="tts-setting-label">음 높이</span>
+      <input type="range" class="tts-slider" id="tts-pitch" min="0.5" max="1.5" step="0.1" value="1.0" oninput="document.getElementById('tts-pitch-val').textContent=this.value">
+      <span class="tts-setting-val" id="tts-pitch-val">1.0</span>
+    </div>
+
+    <div class="tts-setting-row">
+      <span class="tts-setting-label">반복 횟수</span>
+      <input type="range" class="tts-slider" id="tts-repeat" min="1" max="10" step="1" value="3" oninput="document.getElementById('tts-repeat-val').textContent=this.value+'회'">
+      <span class="tts-setting-val" id="tts-repeat-val">3회</span>
+    </div>
+
+    <div class="tts-setting-row">
+      <span class="tts-setting-label">카드 간격</span>
+      <input type="range" class="tts-slider" id="tts-delay" min="0.5" max="5" step="0.5" value="1.5" oninput="document.getElementById('tts-delay-val').textContent=this.value+'초'">
+      <span class="tts-setting-val" id="tts-delay-val">1.5초</span>
+    </div>
+
+    <div class="tts-setting-row">
+      <span class="tts-setting-label">읽기 모드</span>
+      <select class="tts-voice-select" id="tts-read-mode" style="max-width:200px;">
+        <option value="qa">질문 + 답변</option>
+        <option value="a-only">답변만 읽기</option>
+        <option value="q-only">질문만 읽기</option>
+      </select>
+    </div>
+
+    <div style="display:flex;align-items:center;gap:8px;margin-top:8px;">
+      <input type="checkbox" id="tts-loop" style="accent-color:var(--gold);width:14px;height:14px;" checked>
+      <label for="tts-loop" style="font-size:12px;color:var(--text2);cursor:pointer;">전체 덱 반복 (끝나면 처음부터)</label>
+    </div>
+  </div>
+
+  <!-- 카드 목록 -->
+  <div class="tts-panel">
+    <div style="font-size:11px;color:var(--gold);letter-spacing:2px;text-transform:uppercase;font-family:'DM Mono',monospace;margin-bottom:10px;">📋 재생 목록 (<span id="tts-list-count">0</span>장)</div>
+    <div class="tts-card-list" id="tts-card-list"></div>
+  </div>
+</div>
 
 <!-- ═══ SEARCH SCREEN ═══ -->
 <div id="screen-search" class="screen">
@@ -3241,6 +3366,306 @@ updateRoutineSlots();
 
 // Override showScreen to handle new screens
 // ═══════════════════════════════════════════════════════════
+//  TTS (Text-to-Speech) 음성 반복 재생
+// ═══════════════════════════════════════════════════════════
+var ttsDeck=[];
+var ttsIdx=0;
+var ttsPlaying=false;
+var ttsPaused=false;
+var ttsCurrentRepeat=0;   // 현재 카드의 반복 횟수
+var ttsTimerId=null;
+var ttsVoices=[];
+var ttsSelectedVoice=null;
+
+// 음성 목록 로드
+function ttsLoadVoices(){
+  if(!window.speechSynthesis) return;
+  ttsVoices=speechSynthesis.getVoices();
+  var sel=document.getElementById('tts-voice-select');
+  if(!sel) return;
+  sel.innerHTML='<option value="">기본 음성</option>';
+  // 한국어 우선, 그 다음 전체
+  var koVoices=ttsVoices.filter(function(v){return v.lang&&v.lang.indexOf('ko')>=0;});
+  var otherVoices=ttsVoices.filter(function(v){return !v.lang||v.lang.indexOf('ko')<0;});
+  if(koVoices.length>0){
+    var grp=document.createElement('optgroup');grp.label='🇰🇷 한국어 음성';
+    koVoices.forEach(function(v,i){
+      var opt=document.createElement('option');
+      opt.value='ko-'+i;
+      opt.textContent=v.name+(v.localService?' (로컬)':' (온라인)');
+      opt.dataset.voiceIdx=ttsVoices.indexOf(v);
+      grp.appendChild(opt);
+    });
+    sel.appendChild(grp);
+  }
+  if(otherVoices.length>0){
+    var grp2=document.createElement('optgroup');grp2.label='🌍 기타 음성';
+    otherVoices.forEach(function(v,i){
+      var opt=document.createElement('option');
+      opt.value='other-'+i;
+      opt.textContent=v.name+' ('+v.lang+')';
+      opt.dataset.voiceIdx=ttsVoices.indexOf(v);
+      grp2.appendChild(opt);
+    });
+    sel.appendChild(grp2);
+  }
+  // 기본으로 한국어 음성 자동 선택
+  if(koVoices.length>0){
+    // 고품질 음성 우선 선택 (Google, Enhanced, Premium 등)
+    var preferred=koVoices.find(function(v){return /google|enhanced|premium|yuna|heami/i.test(v.name);});
+    if(!preferred) preferred=koVoices[0];
+    ttsSelectedVoice=preferred;
+    // select에서 해당 옵션 선택
+    for(var i=0;i<sel.options.length;i++){
+      if(sel.options[i].dataset&&sel.options[i].dataset.voiceIdx==String(ttsVoices.indexOf(preferred))){
+        sel.selectedIndex=i;break;
+      }
+    }
+  }
+}
+if(window.speechSynthesis){
+  speechSynthesis.onvoiceschanged=ttsLoadVoices;
+  ttsLoadVoices();
+}
+
+function ttsChangeVoice(){
+  var sel=document.getElementById('tts-voice-select');
+  var opt=sel.options[sel.selectedIndex];
+  if(opt&&opt.dataset&&opt.dataset.voiceIdx!==undefined){
+    ttsSelectedVoice=ttsVoices[parseInt(opt.dataset.voiceIdx)];
+  }else{
+    ttsSelectedVoice=null;
+  }
+}
+
+// HTML 태그 제거 + 가독성 처리
+function ttsCleanText(html){
+  if(!html) return '';
+  var t=html
+    .replace(/<br\s*\/?>/gi,'\n')
+    .replace(/<strong>/gi,'').replace(/<\/strong>/gi,'')
+    .replace(/<[^>]+>/g,'')
+    .replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&nbsp;/g,' ')
+    .replace(/[①②③④⑤]/g,function(m){return {'①':'첫째, ','②':'둘째, ','③':'셋째, ','④':'넷째, ','⑤':'다섯째, '}[m]||m;})
+    .replace(/[ⅰⅱⅲⅳⅴ]/g,function(m){return {'ⅰ':'첫째, ','ⅱ':'둘째, ','ⅲ':'셋째, ','ⅳ':'넷째, ','ⅴ':'다섯째, '}[m]||m;})
+    .replace(/法(\d)/g,'법 제$1').replace(/法/g,'법 ')
+    .trim();
+  return t;
+}
+
+function startTTS(){
+  loadDB();
+  var base=getFilteredCards();
+  if(base.length===0){showToast('카드가 없습니다. 카테고리를 확인해주세요.');return;}
+  ttsDeck=pickCards(base, true, base.length>30?30:base.length);
+  ttsIdx=0;
+  ttsCurrentRepeat=0;
+  ttsPlaying=false;
+  ttsPaused=false;
+  showScreen('screen-tts');
+  ttsLoadVoices();
+  ttsRenderList();
+  ttsUpdateDisplay();
+  ttsUpdateStatus('준비됨 · '+ttsDeck.length+'장의 카드');
+}
+
+function ttsRenderList(){
+  var list=document.getElementById('tts-card-list');
+  var countEl=document.getElementById('tts-list-count');
+  if(!list) return;
+  list.innerHTML='';
+  countEl.textContent=ttsDeck.length;
+  ttsDeck.forEach(function(card,i){
+    var item=document.createElement('div');
+    item.className='tts-card-item'+(i===ttsIdx?' current':'');
+    item.id='tts-item-'+i;
+    item.innerHTML='<span class="tts-ci-num">'+(i+1)+'.</span><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+escapeHTML(card.q)+'</span><span style="font-size:10px;color:var(--text3);white-space:nowrap;">'+escapeHTML(card.law)+'</span>';
+    item.addEventListener('click',function(){
+      ttsIdx=i;
+      ttsCurrentRepeat=0;
+      ttsUpdateDisplay();
+      ttsRenderList();
+      if(ttsPlaying&&!ttsPaused){
+        speechSynthesis.cancel();
+        ttsPlayCurrentCard();
+      }
+    });
+    list.appendChild(item);
+  });
+}
+
+function ttsUpdateDisplay(){
+  if(ttsDeck.length===0) return;
+  var card=ttsDeck[ttsIdx];
+  document.getElementById('tts-display-law').textContent=card.law+' · '+card.cat+' · '+card.sub;
+  document.getElementById('tts-display-q').textContent=card.q;
+  document.getElementById('tts-display-a').innerHTML=card.a;
+  var pct=ttsDeck.length>0?Math.round(((ttsIdx)/ttsDeck.length)*100):0;
+  document.getElementById('tts-prog-fill').style.width=pct+'%';
+  document.getElementById('tts-prog-text').textContent=(ttsIdx+1)+' / '+ttsDeck.length;
+  // 하이라이트
+  document.querySelectorAll('.tts-card-item.current').forEach(function(el){el.classList.remove('current');});
+  var cur=document.getElementById('tts-item-'+ttsIdx);
+  if(cur){cur.classList.add('current');cur.scrollIntoView({block:'nearest',behavior:'smooth'});}
+}
+
+function ttsUpdateStatus(msg){
+  var el=document.getElementById('tts-status');
+  if(el) el.textContent=msg;
+}
+
+function ttsTogglePlay(){
+  if(!window.speechSynthesis){showToast('이 브라우저는 음성 합성을 지원하지 않습니다.');return;}
+  if(ttsPlaying&&!ttsPaused){
+    // 일시정지
+    ttsPaused=true;
+    speechSynthesis.pause();
+    document.getElementById('tts-play-btn').textContent='▶';
+    document.getElementById('tts-play-btn').classList.remove('active');
+    document.getElementById('tts-card-display').classList.remove('speaking');
+    ttsUpdateStatus('일시정지');
+    return;
+  }
+  if(ttsPaused){
+    // 재개
+    ttsPaused=false;
+    speechSynthesis.resume();
+    document.getElementById('tts-play-btn').textContent='⏸';
+    document.getElementById('tts-play-btn').classList.add('active');
+    document.getElementById('tts-card-display').classList.add('speaking');
+    ttsUpdateStatus('재생 중...');
+    return;
+  }
+  // 새로 시작
+  ttsPlaying=true;
+  ttsPaused=false;
+  ttsCurrentRepeat=0;
+  document.getElementById('tts-play-btn').textContent='⏸';
+  document.getElementById('tts-play-btn').classList.add('active');
+  ttsPlayCurrentCard();
+}
+
+function stopTTS(){
+  ttsPlaying=false;
+  ttsPaused=false;
+  ttsCurrentRepeat=0;
+  if(ttsTimerId){clearTimeout(ttsTimerId);ttsTimerId=null;}
+  if(window.speechSynthesis) speechSynthesis.cancel();
+  var btn=document.getElementById('tts-play-btn');
+  if(btn){btn.textContent='▶';btn.classList.remove('active');}
+  var disp=document.getElementById('tts-card-display');
+  if(disp) disp.classList.remove('speaking');
+  ttsUpdateStatus('정지됨');
+}
+
+function ttsPrev(){
+  if(ttsDeck.length===0) return;
+  ttsIdx=(ttsIdx-1+ttsDeck.length)%ttsDeck.length;
+  ttsCurrentRepeat=0;
+  ttsUpdateDisplay();
+  ttsRenderList();
+  if(ttsPlaying&&!ttsPaused){
+    speechSynthesis.cancel();
+    ttsPlayCurrentCard();
+  }
+}
+
+function ttsNext(){
+  if(ttsDeck.length===0) return;
+  ttsIdx=(ttsIdx+1)%ttsDeck.length;
+  ttsCurrentRepeat=0;
+  ttsUpdateDisplay();
+  ttsRenderList();
+  if(ttsPlaying&&!ttsPaused){
+    speechSynthesis.cancel();
+    ttsPlayCurrentCard();
+  }
+}
+
+function ttsPlayCurrentCard(){
+  if(!ttsPlaying||ttsPaused) return;
+  if(ttsDeck.length===0){stopTTS();return;}
+  ttsUpdateDisplay();
+  ttsRenderList();
+  var card=ttsDeck[ttsIdx];
+  var mode=document.getElementById('tts-read-mode').value;
+  var maxRepeat=parseInt(document.getElementById('tts-repeat').value)||3;
+  var delay=parseFloat(document.getElementById('tts-delay').value)||1.5;
+
+  // 텍스트 구성
+  var textParts=[];
+  if(mode==='qa'||mode==='q-only'){
+    textParts.push(ttsCleanText(card.q));
+  }
+  if(mode==='qa'){
+    textParts.push('답변.');  // 구분 pause
+  }
+  if(mode==='qa'||mode==='a-only'){
+    textParts.push(ttsCleanText(card.a));
+  }
+  var fullText=textParts.join('\n');
+
+  var repeatLabel='('+(ttsCurrentRepeat+1)+'/'+maxRepeat+'회)';
+  ttsUpdateStatus('재생 중 · 카드 '+(ttsIdx+1)+'/'+ttsDeck.length+' '+repeatLabel);
+  document.getElementById('tts-card-display').classList.add('speaking');
+
+  var utter=new SpeechSynthesisUtterance(fullText);
+  utter.rate=parseFloat(document.getElementById('tts-rate').value)||0.9;
+  utter.pitch=parseFloat(document.getElementById('tts-pitch').value)||1.0;
+  utter.volume=1.0;
+  if(ttsSelectedVoice) utter.voice=ttsSelectedVoice;
+  utter.lang='ko-KR';
+
+  utter.onend=function(){
+    if(!ttsPlaying||ttsPaused) return;
+    document.getElementById('tts-card-display').classList.remove('speaking');
+    ttsCurrentRepeat++;
+    if(ttsCurrentRepeat<maxRepeat){
+      // 같은 카드 반복
+      ttsTimerId=setTimeout(function(){ttsPlayCurrentCard();},delay*500);
+    }else{
+      // 다음 카드
+      ttsCurrentRepeat=0;
+      if(ttsIdx<ttsDeck.length-1){
+        ttsIdx++;
+        ttsTimerId=setTimeout(function(){ttsPlayCurrentCard();},delay*1000);
+      }else{
+        // 덱 끝
+        var loop=document.getElementById('tts-loop').checked;
+        if(loop){
+          ttsIdx=0;
+          ttsTimerId=setTimeout(function(){ttsPlayCurrentCard();},delay*1000);
+        }else{
+          // 완료
+          ttsPlaying=false;
+          document.getElementById('tts-play-btn').textContent='▶';
+          document.getElementById('tts-play-btn').classList.remove('active');
+          document.getElementById('tts-prog-fill').style.width='100%';
+          ttsUpdateStatus('✅ 전체 재생 완료!');
+          showToast('🔊 음성 재생이 완료되었습니다!');
+        }
+      }
+    }
+  };
+
+  utter.onerror=function(e){
+    if(e.error==='canceled'||e.error==='interrupted') return; // manual cancel
+    console.error('TTS error:',e);
+    document.getElementById('tts-card-display').classList.remove('speaking');
+    ttsUpdateStatus('⚠ 음성 오류 — 다음 카드로 이동합니다');
+    ttsCurrentRepeat=0;
+    if(ttsIdx<ttsDeck.length-1){
+      ttsIdx++;
+      ttsTimerId=setTimeout(function(){ttsPlayCurrentCard();},1000);
+    }else stopTTS();
+  };
+
+  // iOS Safari workaround: cancel 후 약간 지연
+  speechSynthesis.cancel();
+  setTimeout(function(){speechSynthesis.speak(utter);},50);
+}
+
+// ═══════════════════════════════════════════════════════════
 //  KEYWORD SEARCH
 // ═══════════════════════════════════════════════════════════
 var _searchDebounce=null;
@@ -3381,10 +3806,11 @@ showScreen=function(id){
     document.documentElement.classList.remove('input-screen-active');
   }
 
-  if(id==='screen-home'){stopSessionTimer();updateHome();updateRoutineSlots();renderDday();updateCustomCardCount();}
+  if(id==='screen-home'){stopSessionTimer();stopTTS();updateHome();updateRoutineSlots();renderDday();updateCustomCardCount();}
   if(id==='screen-progress') renderProgress('all');
   if(id==='screen-curve') renderCurveScreen();
   if(id==='screen-search') initSearchScreen();
+  if(id==='screen-tts') ttsLoadVoices();
   if(id==='screen-add-card'){populateAddCatSelect();renderMyCardsList();}
   if(id==='screen-data-io'){
     var infoEl=document.getElementById('export-info');
