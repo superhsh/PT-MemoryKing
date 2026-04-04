@@ -3401,8 +3401,8 @@ var ttsPlaying=false;
 var ttsPaused=false;
 var ttsCurrentRepeat=0;
 var ttsTimerId=null;
-var ttsCurrentAudio=null;   // HTMLAudioElement (Puter.js) or null
-var ttsAudioCache={};       // 텍스트→audio blob URL 캐시 (반복 재생용)
+var ttsCurrentAudio=null;   // 마스터 Audio 객체 (재사용)
+var ttsSrcCache={};         // cacheKey → audio src URL 캐시
 var ttsCancelled=false;     // 수동 취소 플래그
 
 // ── 제공자별 음성 옵션 ───────────────────────────────────
@@ -3471,7 +3471,7 @@ function ttsOnProviderChange(){
     ttsLoadBrowserVoices();
   }
   // 캐시 초기화 (제공자 변경 시)
-  ttsAudioCache={};
+  ttsSrcCache={};
 }
 
 function ttsLoadBrowserVoices(){
@@ -3527,7 +3527,7 @@ function startTTS(){
   ttsCurrentRepeat=0;
   ttsPlaying=false;
   ttsPaused=false;
-  ttsAudioCache={};
+  ttsSrcCache={};
   ttsCancelled=false;
   showScreen('screen-tts');
   // Puter.js 미로드 시 클라우드 옵션에 표시
@@ -3603,10 +3603,23 @@ function ttsStopCurrentAudio(){
     try{ttsCurrentAudio.pause();ttsCurrentAudio.currentTime=0;}catch(e){}
     ttsCurrentAudio.onended=null;
     ttsCurrentAudio.onerror=null;
-    ttsCurrentAudio=null;
   }
   if(window.speechSynthesis) try{speechSynthesis.cancel();}catch(e){}
   if(ttsTimerId){clearTimeout(ttsTimerId);ttsTimerId=null;}
+}
+
+// ── 마스터 Audio 요소: 첫 사용자 탭에서 생성 & 재사용 ────
+function ttsEnsureAudio(){
+  if(!ttsCurrentAudio){
+    ttsCurrentAudio=new Audio();
+    // iOS: 무음 재생으로 오디오 세션 unlock
+    try{
+      ttsCurrentAudio.src='data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAABhgC7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7//////////////////////////////////////////////////////////////////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAAAAAAAAAAAAYYoRBqIAAAAAAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAABhgC7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7//////////////////////////////////////////////////////////////////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAAAAAAAAAAAAYYoRBqIAAAAAAAAAAAAAAAAAAAA';
+      ttsCurrentAudio.volume=0.01;
+      ttsCurrentAudio.play().then(function(){ttsCurrentAudio.pause();ttsCurrentAudio.volume=1;}).catch(function(){ttsCurrentAudio.volume=1;});
+    }catch(e){}
+  }
+  return ttsCurrentAudio;
 }
 
 function ttsTogglePlay(){
@@ -3632,7 +3645,8 @@ function ttsTogglePlay(){
     ttsUpdateStatus('재생 중...');
     return;
   }
-  // 새로 시작
+  // 새로 시작 — 사용자 제스처 컨텍스트에서 Audio 초기화
+  ttsEnsureAudio();
   ttsPlaying=true;
   ttsPaused=false;
   ttsCancelled=false;
@@ -3685,6 +3699,38 @@ function ttsBuildText(card){
   return parts.join('\n');
 }
 
+// ── 캐시키 생성 ─────────────────────────────────────────
+function ttsCacheKey(cardIdx){
+  if(cardIdx<0||cardIdx>=ttsDeck.length) return null;
+  var card=ttsDeck[cardIdx];
+  var provider=document.getElementById('tts-provider').value;
+  var voice=document.getElementById('tts-voice-select').value;
+  return provider+'|'+voice+'|'+ttsBuildText(card);
+}
+
+// ── 다음 카드 미리 로드 (백그라운드) ─────────────────────
+function ttsPrefetchNext(){
+  var provider=document.getElementById('tts-provider').value;
+  if(provider==='browser') return; // 브라우저 모드는 프리페치 불필요
+  if(!_puterReady||typeof puter==='undefined') return;
+
+  var nextIdx=(ttsIdx+1)%ttsDeck.length;
+  if(nextIdx===ttsIdx) return; // 카드 1장뿐
+  var key=ttsCacheKey(nextIdx);
+  if(!key||ttsSrcCache[key]) return; // 이미 캐시됨
+
+  var card=ttsDeck[nextIdx];
+  var fullText=ttsBuildText(card);
+  if(fullText.length>2900) fullText=fullText.substring(0,2900)+'...';
+  var opts=ttsBuildPuterOpts(provider, fullText);
+
+  puter.ai.txt2speech(fullText, opts)
+    .then(function(audio){
+      if(audio&&audio.src) ttsSrcCache[key]=audio.src;
+    })
+    .catch(function(){/* 프리페치 실패는 무시 */});
+}
+
 // ── 핵심: 카드 재생 ─────────────────────────────────────
 function ttsPlayCurrentCard(){
   if(!ttsPlaying||ttsPaused||ttsCancelled) return;
@@ -3704,11 +3750,6 @@ function ttsPlayCurrentCard(){
   }
 
   var repeatLabel='('+(ttsCurrentRepeat+1)+'/'+maxRepeat+'회)';
-  ttsUpdateStatus('<span class="tts-loading-spinner"></span>음성 생성 중... · 카드 '+(ttsIdx+1)+'/'+ttsDeck.length+' '+repeatLabel);
-  document.getElementById('tts-status').innerHTML=document.getElementById('tts-status').textContent.indexOf('생성')>=0?
-    '<span class="tts-loading-spinner"></span>음성 생성 중... · 카드 '+(ttsIdx+1)+'/'+ttsDeck.length+' '+repeatLabel:
-    '재생 중 · 카드 '+(ttsIdx+1)+'/'+ttsDeck.length+' '+repeatLabel;
-  // innerHTML로 스피너 표시
   document.getElementById('tts-status').innerHTML='<span class="tts-loading-spinner"></span>음성 생성 중... · 카드 '+(ttsIdx+1)+'/'+ttsDeck.length+' '+repeatLabel;
   document.getElementById('tts-card-display').classList.add('speaking');
 
@@ -3725,11 +3766,11 @@ function ttsPlayCurrentCard(){
   }
 
   // 캐시 키
-  var cacheKey=provider+'|'+document.getElementById('tts-voice-select').value+'|'+fullText;
+  var cacheKey=ttsCacheKey(ttsIdx);
 
-  // 캐시된 오디오가 있으면 재사용
-  if(ttsAudioCache[cacheKey]){
-    ttsPlayAudioElement(ttsAudioCache[cacheKey].cloneNode(), maxRepeat, delay);
+  // 캐시된 src가 있으면 마스터 Audio에 설정 후 재생
+  if(ttsSrcCache[cacheKey]){
+    ttsPlayWithSrc(ttsSrcCache[cacheKey], maxRepeat, delay);
     return;
   }
 
@@ -3738,15 +3779,15 @@ function ttsPlayCurrentCard(){
   puter.ai.txt2speech(fullText, opts)
     .then(function(audio){
       if(ttsCancelled||!ttsPlaying) return;
-      // 캐시 저장
-      ttsAudioCache[cacheKey]=audio;
-      ttsPlayAudioElement(audio, maxRepeat, delay);
+      // src 캐시 저장
+      if(audio&&audio.src) ttsSrcCache[cacheKey]=audio.src;
+      ttsPlayWithSrc(audio.src, maxRepeat, delay);
     })
     .catch(function(err){
       console.error('Puter TTS error:',err);
       if(ttsCancelled||!ttsPlaying) return;
       document.getElementById('tts-card-display').classList.remove('speaking');
-      ttsUpdateStatus('⚠ 음성 생성 실패: '+(err.message||err)+' — 다음 카드로 이동');
+      ttsUpdateStatus('⚠ 음성 생성 실패 — 다음 카드로 이동');
       ttsCurrentRepeat=0;
       ttsAdvanceToNext(delay);
     });
@@ -3765,25 +3806,27 @@ function ttsBuildPuterOpts(provider, text){
   return {language:'ko-KR'};
 }
 
-// ── Puter.js Audio 재생 (HTMLAudioElement) ───────────────
-function ttsPlayAudioElement(audio, maxRepeat, delay){
+// ── 마스터 Audio로 src 재생 (핵심 — 단일 요소 재사용) ───
+function ttsPlayWithSrc(src, maxRepeat, delay){
   if(ttsCancelled||!ttsPlaying) return;
-  ttsCurrentAudio=audio;
+  var audio=ttsEnsureAudio();
   var statusEl=document.getElementById('tts-status');
   var repeatLabel='('+(ttsCurrentRepeat+1)+'/'+maxRepeat+'회)';
   statusEl.textContent='재생 중 · 카드 '+(ttsIdx+1)+'/'+ttsDeck.length+' '+repeatLabel;
   document.getElementById('tts-card-display').classList.add('speaking');
 
+  // 다음 카드 백그라운드 프리페치
+  if(ttsCurrentRepeat===0) ttsPrefetchNext();
+
   audio.onended=function(){
     if(ttsCancelled||!ttsPlaying||ttsPaused) return;
     document.getElementById('tts-card-display').classList.remove('speaking');
-    ttsCurrentAudio=null;
     ttsCurrentRepeat++;
     if(ttsCurrentRepeat<maxRepeat){
-      // 같은 카드 반복 — 캐시에서 재생
+      // 같은 카드 반복 — 같은 src 재사용
       ttsTimerId=setTimeout(function(){
         if(!ttsPlaying||ttsCancelled) return;
-        ttsPlayCurrentCard();
+        ttsPlayWithSrc(src, maxRepeat, delay);
       }, delay*500);
     }else{
       ttsCurrentRepeat=0;
@@ -3800,13 +3843,22 @@ function ttsPlayAudioElement(audio, maxRepeat, delay){
     ttsAdvanceToNext(delay);
   };
 
+  // 마스터 Audio에 src 설정 후 재생
+  audio.src=src;
   audio.play().catch(function(e){
     console.error('play() rejected:',e);
-    ttsUpdateStatus('⚠ 재생 차단됨 — 화면을 탭한 후 다시 ▶ 누르세요');
-    ttsPlaying=false;
-    document.getElementById('tts-play-btn').textContent='▶';
-    document.getElementById('tts-play-btn').classList.remove('active');
-    document.getElementById('tts-card-display').classList.remove('speaking');
+    // 재시도: 1초 후 한 번 더 시도
+    ttsTimerId=setTimeout(function(){
+      if(!ttsPlaying||ttsCancelled) return;
+      audio.play().catch(function(e2){
+        console.error('play() retry rejected:',e2);
+        ttsUpdateStatus('⚠ 재생 차단됨 — 화면을 탭한 후 다시 ▶ 누르세요');
+        ttsPlaying=false;
+        document.getElementById('tts-play-btn').textContent='▶';
+        document.getElementById('tts-play-btn').classList.remove('active');
+        document.getElementById('tts-card-display').classList.remove('speaking');
+      });
+    },500);
   });
 }
 
