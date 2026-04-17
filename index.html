@@ -1246,7 +1246,11 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
 
     <div style="margin-bottom:12px;">
       <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px;">답변 (뒷면) — 중요 부분은 **볼드** 표시 가능</label>
-      <textarea id="add-a" style="width:100%;min-height:80px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:14px;outline:none;resize:vertical;font-family:'Noto Sans KR',sans-serif;line-height:1.7;box-sizing:border-box;" placeholder="예: **보호할 가치가 있는 기술적 진보를 포함하는 발명일 것** (주관적 창작성)&#10;줄바꿈도 가능합니다."></textarea>
+      <textarea id="add-a" style="width:100%;min-height:180px;max-height:400px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:12px 14px;color:var(--text);font-size:14px;outline:none;resize:vertical;font-family:'Noto Sans KR',sans-serif;line-height:1.8;box-sizing:border-box;transition:border-color .2s;" onfocus="this.style.borderColor='var(--gold)'" onblur="this.style.borderColor='var(--border)'" oninput="autoResizeTextarea(this)" placeholder="예: **보호할 가치가 있는 기술적 진보를 포함하는 발명일 것** (주관적 창작성)&#10;줄바꿈도 가능합니다.&#10;&#10;① 첫째 요건&#10;② 둘째 요건"></textarea>
+      <div style="display:flex;justify-content:space-between;margin-top:4px;">
+        <span style="font-size:10px;color:var(--text3);">💡 Tip: 줄바꿈=Enter · **볼드**=별표 2개로 감싸기</span>
+        <span id="add-a-charcount" style="font-size:10px;color:var(--text3);font-family:'DM Mono',monospace;">0자</span>
+      </div>
     </div>
 
     <div style="margin-bottom:12px;">
@@ -1265,6 +1269,7 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
     <div style="text-align:center;margin-top:16px;" id="add-card-btn-area">
       <button class="btn btn-green" id="btn-save-card" style="color:#0d0f14;font-weight:700;padding:12px 32px;" onclick="saveCustomCard()">✓ 카드 추가하기</button>
       <button class="btn btn-secondary btn-sm" id="btn-cancel-edit" style="display:none;margin-left:8px;" onclick="cancelEditCard()">취소</button>
+      <button class="btn btn-sm" id="btn-restore-original" style="display:none;margin-left:8px;background:rgba(224,123,82,.15);color:var(--orange);border:1px solid rgba(224,123,82,.3);">🔄 원본 복원</button>
     </div>
   </div>
 
@@ -2412,6 +2417,66 @@ function escapeHTML(s){
 
 // ── contenteditable 빈칸 값 읽기 헬퍼 ──
 function getBlankValue(el){ return (el.textContent||'').trim(); }
+
+// ── 유연한 빈칸 정답 비교 (띄어쓰기·조사·순서 무시) ─────
+function matchBlankAnswer(given, expected){
+  if(!given||!expected) return false;
+  var g=given.trim(), e=expected.trim();
+  // 1) 완전 일치
+  if(g===e) return true;
+  // 2) 공백 제거 후 일치
+  if(g.replace(/\s+/g,'')===e.replace(/\s+/g,'')) return true;
+  // 3) 정규화 비교 (조사 제거 + 순서 무시)
+  var gn=normalizeKo(g), en=normalizeKo(e);
+  if(gn===en) return true;
+  // 4) 단어 집합 비교 (순서 무시)
+  var gw=koWords(g), ew=koWords(e);
+  if(gw.length>0&&ew.length>0&&gw.length===ew.length){
+    var gs=gw.slice().sort().join('|');
+    var es=ew.slice().sort().join('|');
+    if(gs===es) return true;
+  }
+  // 5) 조사 제거 후 단어 집합 비교
+  if(gw.length>0&&ew.length>0){
+    var gsn=gw.map(stripJosa).sort().join('|');
+    var esn=ew.map(stripJosa).sort().join('|');
+    if(gsn===esn) return true;
+  }
+  return false;
+}
+
+// 한국어 조사 제거
+function stripJosa(word){
+  if(!word||word.length<2) return word;
+  // 2글자 조사 먼저 체크 (에서, 에게, 까지, 부터, 한테, 으로, 처럼, 만큼, 에는, 으로서, 로서, 로써, 에서는, 이라, 이다)
+  var josa2=['에서','에게','까지','부터','한테','으로','처럼','만큼','라는','에는','이라','이다','에도','에만','으로서','로서','로써','와는','과는'];
+  for(var i=0;i<josa2.length;i++){
+    if(word.length>josa2[i].length&&word.endsWith(josa2[i])){
+      return word.slice(0,-josa2[i].length);
+    }
+  }
+  // 1글자 조사
+  var josa1='은는이가을를에와과의로도만';
+  var last=word.charAt(word.length-1);
+  if(josa1.indexOf(last)>=0&&word.length>1){
+    return word.slice(0,-1);
+  }
+  return word;
+}
+
+// 정규화: 공백·조사·특수문자 제거 후 비교용 문자열
+function normalizeKo(s){
+  return s.replace(/[\s·\-_,./()（）「」『』\[\]]+/g,'')
+    .replace(/[은는이가을를에와과의로도만]/g,'')
+    .toLowerCase();
+}
+
+// 의미 있는 단어 분리
+function koWords(s){
+  return s.replace(/[·\-_,./()（）「」『』\[\]]+/g,' ')
+    .split(/\s+/)
+    .filter(function(w){return w.length>0;});
+}
 function setBlankValue(el,v){ el.textContent=v; }
 
 // 답안 텍스트에서 키워드를 빈칸 contenteditable span으로 교체
@@ -2684,7 +2749,7 @@ function submitBlanks(){
     inp.setAttribute('data-disabled','true');
     const expected=(inp.dataset.answer||'').trim();
     const given=getBlankValue(inp);
-    const ok = given===expected || given.replace(/\s+/g,'')===expected.replace(/\s+/g,'');
+    const ok = matchBlankAnswer(given, expected);
     inp.classList.toggle('blank-ok', ok);
     inp.classList.toggle('blank-ng', !ok);
     const kwIdx=parseInt(inp.dataset.idx);
@@ -3693,6 +3758,12 @@ function showToast(msg){
   const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');
   setTimeout(function(){t.classList.remove('show');},2800);
 }
+function autoResizeTextarea(el){
+  el.style.height='auto';
+  el.style.height=Math.min(400,Math.max(180,el.scrollHeight))+'px';
+  var cc=document.getElementById('add-a-charcount');
+  if(cc) cc.textContent=el.value.length+'자';
+}
 function resetAll(){
   if(!confirm('모든 학습 데이터를 초기화하시겠습니까?\n(커스텀 카드는 유지됩니다. 커스텀 카드도 삭제하려면 개별 삭제해주세요.)')) return;
   ['patentLaw_v3','patentHist_v2','patentRoutines','patentDday'].forEach(function(k){localStorage.removeItem(k);});
@@ -3838,6 +3909,43 @@ function renderRelChips(){
 }
 
 // ═══════════════════════════════════════════════════════════
+//  CARD OVERRIDES (기본 카드 수정 저장)
+// ═══════════════════════════════════════════════════════════
+const OVERRIDE_SK='patentCardOverrides_v1';
+let cardOverrides={};  // { cardId: {cat,law,sub,field,q,a,keywords,relatedIds} }
+
+function loadCardOverrides(){
+  try{cardOverrides=JSON.parse(localStorage.getItem(OVERRIDE_SK))||{};}catch(e){cardOverrides={};}
+  // 오버라이드를 CARDS 배열에 적용
+  Object.keys(cardOverrides).forEach(function(id){
+    var card=CARDS.find(function(c){return c.id===id;});
+    if(!card) return;
+    var ov=cardOverrides[id];
+    if(ov.cat) card.cat=ov.cat;
+    if(ov.law) card.law=ov.law;
+    if(ov.sub) card.sub=ov.sub;
+    if(ov.field) card.field=ov.field;
+    if(ov.q) card.q=ov.q;
+    if(ov.a) card.a=ov.a;
+    if(ov.keywords) card.keywords=ov.keywords;
+    if(ov.relatedIds) card.relatedIds=ov.relatedIds;
+    card._overridden=true;
+  });
+}
+function saveCardOverrides(){
+  localStorage.setItem(OVERRIDE_SK,JSON.stringify(cardOverrides));
+}
+function isOverridden(id){ return !!cardOverrides[id]; }
+function restoreOriginalCard(id){
+  if(!cardOverrides[id]) return;
+  delete cardOverrides[id];
+  saveCardOverrides();
+  showToast('원본으로 복원되었습니다. 새로고침 후 적용됩니다.');
+  // 페이지 새로고침으로 원본 복원
+  setTimeout(function(){location.reload();},800);
+}
+
+// ═══════════════════════════════════════════════════════════
 //  CUSTOM CARDS
 // ═══════════════════════════════════════════════════════════
 const CUSTOM_SK='patentCustomCards_v1';
@@ -3886,15 +3994,32 @@ function saveCustomCard(){
 
   if(editingCardId){
     // ── 수정 모드 ──
-    var cc=customCards.find(function(c){return c.id===editingCardId;});
-    if(cc){
-      cc.cat=catSel; cc.law=law||'-'; cc.sub=sub||'-';
-      cc.field=field; cc.q=q; cc.a=a; cc.keywords=keywords;
-      cc.relatedIds=_addRelIds.slice();
-      saveCustomCards();
-      // CARDS 배열도 동기화
-      var rc=CARDS.find(function(c){return c.id===editingCardId;});
-      if(rc){ rc.cat=catSel; rc.law=law||'-'; rc.sub=sub||'-'; rc.field=field; rc.q=q; rc.a=a; rc.keywords=keywords; rc.relatedIds=_addRelIds.slice(); }
+    var isCustomEdit=!!customCards.find(function(c){return c.id===editingCardId;});
+    if(isCustomEdit){
+      // 커스텀 카드 수정
+      var cc=customCards.find(function(c){return c.id===editingCardId;});
+      if(cc){
+        cc.cat=catSel; cc.law=law||'-'; cc.sub=sub||'-';
+        cc.field=field; cc.q=q; cc.a=a; cc.keywords=keywords;
+        cc.relatedIds=_addRelIds.slice();
+        saveCustomCards();
+      }
+    } else {
+      // 기본 카드 수정 → 오버라이드로 저장
+      cardOverrides[editingCardId]={
+        cat:catSel, law:law||'-', sub:sub||'-',
+        field:field, q:q, a:a, keywords:keywords,
+        relatedIds:_addRelIds.slice()
+      };
+      saveCardOverrides();
+    }
+    // CARDS 배열 동기화 (커스텀/기본 공통)
+    var rc=CARDS.find(function(c){return c.id===editingCardId;});
+    if(rc){
+      rc.cat=catSel; rc.law=law||'-'; rc.sub=sub||'-';
+      rc.field=field; rc.q=q; rc.a=a; rc.keywords=keywords;
+      rc.relatedIds=_addRelIds.slice();
+      if(!isCustomEdit) rc._overridden=true;
     }
     showToast('✏️ 카드가 수정되었습니다!');
     cancelEditCard(); // 폼 초기화 + 버튼 복원
@@ -3959,7 +4084,8 @@ function deleteCustomCard(id){
 var editingCardId=null;
 
 function editCustomCard(id){
-  var card=customCards.find(function(c){return c.id===id;});
+  // 커스텀 카드 또는 기본 카드 모두 수정 가능
+  var card=CARDS.find(function(c){return c.id===id;});
   if(!card) return;
   editingCardId=id;
 
@@ -3974,6 +4100,7 @@ function editCustomCard(id){
   // 답변: <strong>→**bold**, <br>→줄바꿈 역변환
   var aText=card.a.replace(/<br\s*\/?>/gi,'\n').replace(/<strong>(.*?)<\/strong>/gi,'**$1**').replace(/<[^>]+>/g,'');
   document.getElementById('add-a').value=aText;
+  autoResizeTextarea(document.getElementById('add-a'));
 
   document.getElementById('add-keywords').value=(card.keywords||[]).join(', ');
   // 관련 카드 연결 복원
@@ -3993,9 +4120,23 @@ function editCustomCard(id){
   saveBtn.style.cssText='color:#fff;font-weight:700;padding:12px 32px;';
   document.getElementById('btn-cancel-edit').style.display='inline-block';
 
+  // 기본 카드 수정 시 원본 복원 버튼 표시
+  var restoreBtn=document.getElementById('btn-restore-original');
+  if(restoreBtn){
+    if(!card._custom&&isOverridden(id)){
+      restoreBtn.style.display='inline-block';
+      restoreBtn.onclick=function(){restoreOriginalCard(id);};
+    }else{
+      restoreBtn.style.display='none';
+    }
+  }
+
+  // 기본 카드 수정 안내
+  var editInfo=card._custom?'수정 모드 — 내용을 변경 후 "수정 완료"를 누르세요.':'기본 카드 수정 모드 — 변경하면 이 기기에 저장됩니다.';
+  showToast(editInfo);
+
   // 폼 영역으로 스크롤
   document.getElementById('add-cat').scrollIntoView({behavior:'smooth',block:'start'});
-  showToast('수정 모드 — 내용을 변경 후 "수정 완료"를 누르세요.');
 }
 
 function cancelEditCard(){
@@ -4020,6 +4161,8 @@ function cancelEditCard(){
   saveBtn.className='btn btn-green';
   saveBtn.style.cssText='color:#0d0f14;font-weight:700;padding:12px 32px;';
   document.getElementById('btn-cancel-edit').style.display='none';
+  var restoreBtn=document.getElementById('btn-restore-original');
+  if(restoreBtn) restoreBtn.style.display='none';
 }
 
 function renderMyCardsList(){
@@ -4142,6 +4285,7 @@ async function exportData(){
     exportDate:new Date().toISOString(),
     builtinCardCount:CARDS.filter(function(c){return !c._custom;}).length,
     customCards:customCards,
+    cardOverrides:cardOverrides,
     db:db,
     history:null,
     routines:null,
@@ -4236,6 +4380,13 @@ function importData(event){
       if(data.dday) localStorage.setItem('patentDday',data.dday);
       else localStorage.removeItem('patentDday');
 
+      // Restore card overrides
+      if(data.cardOverrides){
+        cardOverrides=data.cardOverrides;
+        saveCardOverrides();
+        loadCardOverrides();
+      }
+
       // Recalculate CATS
       CATS.length=0;
       var seen={};
@@ -4248,8 +4399,9 @@ function importData(event){
       updateCustomCardCount();
 
       var customCount=customCards.length;
+      var overrideCount=Object.keys(cardOverrides).length;
       var totalLearned=CARDS.filter(function(c){return db[c.id]&&db[c.id].fcReps>0;}).length;
-      showImportResult(true,'데이터 복원 완료!<br>커스텀 카드: '+customCount+'장 · 학습 기록 카드: '+totalLearned+'장<br>내보낸 날짜: '+(data.exportDate||'알 수 없음'));
+      showImportResult(true,'데이터 복원 완료!<br>커스텀 카드: '+customCount+'장 · 수정된 기본 카드: '+overrideCount+'장 · 학습 기록: '+totalLearned+'장<br>내보낸 날짜: '+(data.exportDate||'알 수 없음'));
       showToast('✅ 데이터를 성공적으로 가져왔습니다!');
     }catch(err){
       showImportResult(false,'파일 읽기 실패: '+err.message);
@@ -4277,6 +4429,7 @@ function showImportResult(success,msg){
 //  INIT OVERRIDES (load custom cards on startup)
 // ═══════════════════════════════════════════════════════════
 loadCustomCards();
+loadCardOverrides();
 updateCustomCardCount();
 loadDB();
 updateHome();
@@ -4912,18 +5065,17 @@ function runSearch(query){
     subBtn.addEventListener('click',function(e){e.stopPropagation();startSingleCard(card.id,'subjective');});
     actions.appendChild(subBtn);
 
-    if(isCustom){
-      var editBtn=document.createElement('button');
-      editBtn.className='pa-btn';
-      editBtn.style.cssText='border-color:var(--green);color:var(--green);';
-      editBtn.textContent='✏️ 수정';
-      editBtn.addEventListener('click',function(e){
-        e.stopPropagation();
-        showScreen('screen-add-card');
-        setTimeout(function(){ editCustomCard(card.id); },100);
-      });
-      actions.appendChild(editBtn);
-    }
+    // 수정 버튼 (모든 카드)
+    var editBtn=document.createElement('button');
+    editBtn.className='pa-btn';
+    editBtn.style.cssText=isCustom?'border-color:var(--green);color:var(--green);':'border-color:var(--blue);color:var(--blue);';
+    editBtn.textContent=isCustom?'✏️ 수정':(isOverridden(card.id)?'✏️ 수정됨':'✏️ 수정');
+    editBtn.addEventListener('click',function(e){
+      e.stopPropagation();
+      showScreen('screen-add-card');
+      setTimeout(function(){ editCustomCard(card.id); },100);
+    });
+    actions.appendChild(editBtn);
 
     var infoSpan=document.createElement('span');
     infoSpan.className='pa-info';
