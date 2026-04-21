@@ -249,6 +249,8 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
 .fc-header{display:flex;align-items:center;gap:12px;margin-bottom:22px;}
 .fc-back-btn{background:var(--bg2);border:1px solid var(--border);color:var(--text);padding:8px 13px;border-radius:8px;font-size:13px;cursor:pointer;transition:all .2s;white-space:nowrap;}
 .fc-back-btn:hover{border-color:var(--gold);color:var(--gold);}
+.fc-edit-btn{background:var(--bg2);border:1px solid var(--border);color:var(--text3);padding:6px 10px;border-radius:8px;font-size:13px;cursor:pointer;transition:all .2s;white-space:nowrap;}
+.fc-edit-btn:hover{border-color:var(--blue);color:var(--blue);}
 .fc-progress-wrap{flex:1;}
 .fc-progress-bar{height:4px;background:var(--border);border-radius:2px;}
 .fc-progress-fill{height:100%;background:var(--gold);border-radius:2px;transition:width .4s;}
@@ -296,12 +298,12 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
 .sub-blanks-wrap{margin-top:16px;}
 .sub-blank-row{display:flex;align-items:flex-start;gap:10px;margin-bottom:10px;}
 .sub-blank-num{font-family:'DM Mono',monospace;font-size:12px;color:var(--purple);min-width:20px;padding-top:11px;}
-.sub-blank-input{flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:10px 14px;font-family:'Noto Sans KR',sans-serif;font-size:14px;color:var(--text);outline:none;resize:none;transition:border-color .2s;min-height:44px;}
+.sub-blank-input{flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:12px 14px;font-family:'Noto Sans KR',sans-serif;font-size:14px;color:var(--text);outline:none;resize:vertical;transition:border-color .2s;min-height:52px;line-height:1.7;box-sizing:border-box;}
 .sub-blank-input:focus{border-color:var(--purple);}
 .sub-blank-input.graded-correct{border-color:var(--green);background:rgba(82,201,122,.07);}
 .sub-blank-input.graded-partial{border-color:var(--gold);background:rgba(201,168,76,.07);}
 .sub-blank-input.graded-wrong{border-color:var(--red);background:rgba(224,82,82,.07);}
-.sub-textarea{width:100%;background:var(--bg3);border:1.5px solid rgba(155,110,240,.3);border-radius:12px;padding:14px 16px;font-family:'Noto Sans KR',sans-serif;font-size:14px;color:var(--text);outline:none;resize:vertical;min-height:100px;transition:border-color .2s;line-height:1.8;}
+.sub-textarea{width:100%;background:var(--bg3);border:1.5px solid rgba(155,110,240,.3);border-radius:12px;padding:14px 16px;font-family:'Noto Sans KR',sans-serif;font-size:14px;color:var(--text);outline:none;resize:vertical;min-height:200px;max-height:450px;transition:border-color .2s;line-height:1.8;box-sizing:border-box;}
 .sub-textarea:focus{border-color:var(--purple);}
 .sub-hint-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;}
 .sub-hint-txt{font-size:11px;color:var(--text3);}
@@ -807,6 +809,7 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
       <div class="fc-counter" id="fc-counter">0 / 0</div>
     </div>
     <span class="mode-label-pill mlp-fc" id="fc-mode-label">FILL</span>
+    <button class="fc-edit-btn" id="fc-edit-btn" onclick="editCurrentCard('fc')" title="현재 카드 수정">✏️</button>
   </div>
 
   <!-- 1-3-7-14-21 단계 시각화 -->
@@ -917,6 +920,7 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
       <div class="fc-counter" id="sub-counter">0 / 0</div>
     </div>
     <span class="mode-label-pill mlp-sub" id="sub-mode-label">WRITE</span>
+    <button class="fc-edit-btn" id="sub-edit-btn" onclick="editCurrentCard('sub')" title="현재 카드 수정">✏️</button>
   </div>
 
   <div class="sub-wrap">
@@ -2426,23 +2430,51 @@ function matchBlankAnswer(given, expected){
   if(g===e) return true;
   // 2) 공백 제거 후 일치
   if(g.replace(/\s+/g,'')===e.replace(/\s+/g,'')) return true;
-  // 3) 정규화 비교 (조사 제거 + 순서 무시)
+  // 3) 구분자 통일 후 비교 (·,/,-,_ 등을 모두 제거)
+  var gFlat=flattenSep(g), eFlat=flattenSep(e);
+  if(gFlat===eFlat) return true;
+  // 4) 정규화 비교 (조사+구분자+특수문자 제거)
   var gn=normalizeKo(g), en=normalizeKo(e);
   if(gn===en) return true;
-  // 4) 단어 집합 비교 (순서 무시)
+  // 5) 단어 집합 비교 (순서 무시) — 구분자 기준 분리
   var gw=koWords(g), ew=koWords(e);
   if(gw.length>0&&ew.length>0&&gw.length===ew.length){
     var gs=gw.slice().sort().join('|');
     var es=ew.slice().sort().join('|');
     if(gs===es) return true;
   }
-  // 5) 조사 제거 후 단어 집합 비교
+  // 6) 조사 제거 후 단어 집합 비교
   if(gw.length>0&&ew.length>0){
     var gsn=gw.map(stripJosa).sort().join('|');
     var esn=ew.map(stripJosa).sort().join('|');
     if(gsn===esn) return true;
   }
+  // 7) 글자 집합 비교 (구분자 제거 후 문자 정렬) — 순서+결합 무시
+  if(gFlat.length>0&&eFlat.length>0&&gFlat.length===eFlat.length){
+    if(gFlat.split('').sort().join('')===eFlat.split('').sort().join('')) return true;
+  }
+  // 8) 조사 제거 후 글자 집합 비교
+  var gJosa=stripAllJosa(gFlat), eJosa=stripAllJosa(eFlat);
+  if(gJosa.length>0&&eJosa.length>0&&gJosa.length===eJosa.length){
+    if(gJosa.split('').sort().join('')===eJosa.split('').sort().join('')) return true;
+  }
   return false;
+}
+
+// 구분자(·,/,-,_,,,공백 등) 모두 제거하여 순수 글자만
+function flattenSep(s){
+  return s.replace(/[\s·\-_,./·()（）「」『』\[\]:;!?~]+/g,'');
+}
+// 전체 문자열에서 조사 제거 (끝에서만)
+function stripAllJosa(s){
+  if(!s||s.length<2) return s;
+  var josa2=['에서','에게','까지','부터','한테','으로','처럼','만큼','라는','에는','이라','이다','에도','에만','으로서','로서','로써','와는','과는'];
+  for(var i=0;i<josa2.length;i++){
+    if(s.length>josa2[i].length&&s.endsWith(josa2[i])) return s.slice(0,-josa2[i].length);
+  }
+  var josa1='은는이가을를에와과의로도만';
+  if(josa1.indexOf(s.charAt(s.length-1))>=0) return s.slice(0,-1);
+  return s;
 }
 
 // 한국어 조사 제거
@@ -3029,7 +3061,7 @@ function loadSubjective(){
   const ta=document.createElement('textarea');
   ta.className='sub-textarea';ta.id='sub-textarea';
   ta.placeholder='여기에 답안을 작성하세요...\n예: 의의는 ○○이고, 취지는 ○○이며, 요건은 ①○○ ②○○ ③○○이다.';
-  ta.oninput=function(){document.getElementById('sub-char-count').textContent=ta.value.length+'자';};
+  ta.oninput=function(){document.getElementById('sub-char-count').textContent=ta.value.length+'자';ta.style.height='auto';ta.style.height=Math.min(450,Math.max(200,ta.scrollHeight))+'px';};
   container.appendChild(ta);
   if(sub.subAttempts>1&&sub.subCorrect===0){
     const hBtn=document.createElement('button');
@@ -4021,8 +4053,8 @@ function saveCustomCard(){
       rc.relatedIds=_addRelIds.slice();
       if(!isCustomEdit) rc._overridden=true;
     }
-    showToast('✏️ 카드가 수정되었습니다!');
-    cancelEditCard(); // 폼 초기화 + 버튼 복원
+    if(!_editReturnSession) showToast('✏️ 카드가 수정되었습니다!');
+    cancelEditCard(); // 폼 초기화 + 버튼 복원 + 세션 복귀
   } else {
     // ── 신규 추가 모드 ──
     var id='CU'+Date.now().toString(36).toUpperCase();
@@ -4163,6 +4195,59 @@ function cancelEditCard(){
   document.getElementById('btn-cancel-edit').style.display='none';
   var restoreBtn=document.getElementById('btn-restore-original');
   if(restoreBtn) restoreBtn.style.display='none';
+
+  // 세션 복귀가 예약된 경우 학습 화면으로 돌아감
+  if(_editReturnSession) returnToSessionAfterEdit();
+}
+
+// ── 학습 중 카드 수정 & 복귀 ─────────────────────────────
+var _editReturnSession=null;
+
+function editCurrentCard(type){
+  var card=currentDeck[currentIdx];
+  if(!card){showToast('수정할 카드가 없습니다.');return;}
+
+  // 현재 세션 상태 저장
+  _editReturnSession={
+    deck:currentDeck,
+    idx:currentIdx,
+    mode:currentMode,
+    stats:Object.assign({},sessionStats),
+    type:type // 'fc' or 'sub'
+  };
+
+  // 카드 추가 화면으로 이동 후 editCustomCard 호출
+  showScreen('screen-add-card');
+  setTimeout(function(){
+    editCustomCard(card.id);
+    // 버튼 텍스트 변경
+    var saveBtn=document.getElementById('btn-save-card');
+    if(saveBtn) saveBtn.textContent='✏️ 수정 후 학습으로 돌아가기';
+    var cancelBtn=document.getElementById('btn-cancel-edit');
+    if(cancelBtn) cancelBtn.textContent='취소 후 돌아가기';
+  },100);
+}
+
+function returnToSessionAfterEdit(){
+  if(!_editReturnSession) return;
+  var s=_editReturnSession;
+  _editReturnSession=null;
+
+  currentDeck=s.deck;
+  currentIdx=s.idx;
+  currentMode=s.mode;
+  sessionStats=s.stats;
+
+  // 수정된 카드를 덱에 반영 (CARDS 배열이 이미 업데이트됨)
+  var card=CARDS.find(function(c){return c.id===currentDeck[currentIdx].id;});
+  if(card) currentDeck[currentIdx]=card;
+
+  if(s.type==='sub'){
+    loadSubjective();
+  } else {
+    loadFlashcard();
+  }
+  showToast('✏️ 수정 완료 — 학습을 계속합니다');
 }
 
 function renderMyCardsList(){
