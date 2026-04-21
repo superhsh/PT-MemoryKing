@@ -1281,6 +1281,16 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
   <div style="margin-top:20px;">
     <div style="font-size:11px;color:var(--gold);letter-spacing:2px;text-transform:uppercase;font-family:'DM Mono',monospace;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;">
       <span>📋 내가 추가한 카드 (<span id="my-card-count">0</span>개)</span>
+      <button id="my-cards-select-toggle" style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:5px 12px;color:var(--text2);font-size:11px;cursor:pointer;display:none;" onclick="toggleMyCardSelectMode()">☑ 선택 모드</button>
+    </div>
+    <div id="my-cards-select-bar" style="display:none;background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:10px 14px;margin-bottom:10px;">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+        <button style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:5px 10px;color:var(--text2);font-size:11px;cursor:pointer;" onclick="toggleSelectAllMyCards()">전체 선택/해제</button>
+        <span id="my-cards-sel-count" style="font-family:'DM Mono',monospace;font-size:12px;color:var(--gold);">0장 선택</span>
+        <span style="flex:1;"></span>
+        <button class="btn btn-blue btn-sm" style="padding:6px 12px;font-size:11px;" onclick="startMyCardSession('flashcard')">🃏 FC 학습</button>
+        <button class="btn btn-purple btn-sm" style="padding:6px 12px;font-size:11px;" onclick="startMyCardSession('subjective')">✍️ 주관식</button>
+      </div>
     </div>
     <div id="my-cards-list" style="display:flex;flex-direction:column;gap:8px;"></div>
   </div>
@@ -4250,11 +4260,17 @@ function returnToSessionAfterEdit(){
   showToast('✏️ 수정 완료 — 학습을 계속합니다');
 }
 
+var _myCardSelectMode=false;
+var _myCardSelected=new Set();
+
 function renderMyCardsList(){
   var list=document.getElementById('my-cards-list');
   if(!list) return;
   var countEl=document.getElementById('my-card-count');
   if(countEl) countEl.textContent=customCards.length;
+  // 선택 모드 토글 버튼 표시
+  var selToggle=document.getElementById('my-cards-select-toggle');
+  if(selToggle) selToggle.style.display=customCards.length>=2?'':'none';
   list.innerHTML='';
   if(customCards.length===0){
     list.innerHTML='<div style="text-align:center;color:var(--text3);padding:24px;">아직 추가한 카드가 없습니다.</div>';
@@ -4266,7 +4282,26 @@ function renderMyCardsList(){
     var learned=s&&s.fcReps>0;
     var tag=mastered?'<span class="mastered-tag">⭐암기완료</span>':learned?'<span class="learning-tag">학습중</span>':'<span class="new-tag">신규</span>';
     var row=document.createElement('div');
-    row.style.cssText='background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:12px 16px;display:flex;align-items:center;gap:12px;';
+    row.style.cssText='background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:12px 16px;display:flex;align-items:center;gap:12px;transition:border-color .2s;';
+    row.setAttribute('data-card-id',card.id);
+
+    // 체크박스 (선택 모드일 때만 표시)
+    var chk=document.createElement('input');
+    chk.type='checkbox';
+    chk.style.cssText='width:20px;height:20px;accent-color:var(--gold);cursor:pointer;flex-shrink:0;'+(
+      _myCardSelectMode?'':'display:none;');
+    chk.checked=_myCardSelected.has(card.id);
+    chk.addEventListener('change',function(){
+      if(chk.checked) _myCardSelected.add(card.id);
+      else _myCardSelected.delete(card.id);
+      row.style.borderColor=chk.checked?'var(--gold)':'var(--border)';
+      updateMyCardSelCount();
+    });
+    row.appendChild(chk);
+
+    if(_myCardSelectMode&&_myCardSelected.has(card.id)){
+      row.style.borderColor='var(--gold)';
+    }
 
     var infoDiv=document.createElement('div');
     infoDiv.style.cssText='flex:1;min-width:0;';
@@ -4278,6 +4313,15 @@ function renderMyCardsList(){
       tag+'</div>'+
       '<div style="font-size:13px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+escapeHTML(card.q)+'</div>'+
       '<div style="font-size:10px;color:var(--text3);margin-top:2px;">키워드: '+card.keywords.map(function(k){return escapeHTML(k);}).join(', ')+'</div>';
+
+    // 선택 모드에서는 행 클릭으로 체크 토글
+    if(_myCardSelectMode){
+      infoDiv.style.cursor='pointer';
+      infoDiv.addEventListener('click',function(){
+        chk.checked=!chk.checked;
+        chk.dispatchEvent(new Event('change'));
+      });
+    }
     row.appendChild(infoDiv);
 
     var btnDiv=document.createElement('div');
@@ -4286,18 +4330,70 @@ function renderMyCardsList(){
     var editBtn=document.createElement('button');
     editBtn.style.cssText='background:rgba(91,138,240,.1);border:1px solid rgba(91,138,240,.3);border-radius:8px;padding:6px 10px;cursor:pointer;color:var(--blue);font-size:12px;white-space:nowrap;';
     editBtn.textContent='수정';
-    editBtn.addEventListener('click',function(){ editCustomCard(card.id); });
+    editBtn.addEventListener('click',function(e){ e.stopPropagation(); editCustomCard(card.id); });
     btnDiv.appendChild(editBtn);
 
     var delBtn=document.createElement('button');
     delBtn.style.cssText='background:rgba(224,82,82,.1);border:1px solid rgba(224,82,82,.3);border-radius:8px;padding:6px 10px;cursor:pointer;color:var(--red);font-size:12px;white-space:nowrap;';
     delBtn.textContent='삭제';
-    delBtn.addEventListener('click',function(){ deleteCustomCard(card.id); });
+    delBtn.addEventListener('click',function(e){ e.stopPropagation(); deleteCustomCard(card.id); });
     btnDiv.appendChild(delBtn);
 
     row.appendChild(btnDiv);
     list.appendChild(row);
   });
+  updateMyCardSelCount();
+}
+
+function toggleMyCardSelectMode(){
+  _myCardSelectMode=!_myCardSelectMode;
+  var bar=document.getElementById('my-cards-select-bar');
+  var toggle=document.getElementById('my-cards-select-toggle');
+  if(bar) bar.style.display=_myCardSelectMode?'block':'none';
+  if(toggle){
+    toggle.textContent=_myCardSelectMode?'✕ 선택 해제':'☑ 선택 모드';
+    toggle.style.borderColor=_myCardSelectMode?'var(--gold)':'var(--border)';
+    toggle.style.color=_myCardSelectMode?'var(--gold)':'var(--text2)';
+  }
+  if(!_myCardSelectMode) _myCardSelected.clear();
+  renderMyCardsList();
+}
+
+function toggleSelectAllMyCards(){
+  if(_myCardSelected.size===customCards.length){
+    _myCardSelected.clear();
+  } else {
+    customCards.forEach(function(c){_myCardSelected.add(c.id);});
+  }
+  renderMyCardsList();
+}
+
+function updateMyCardSelCount(){
+  var el=document.getElementById('my-cards-sel-count');
+  if(el) el.textContent=_myCardSelected.size+'장 선택';
+}
+
+function startMyCardSession(mode){
+  if(_myCardSelected.size===0){showToast('학습할 카드를 선택해주세요.');return;}
+  loadDB();
+  var selected=CARDS.filter(function(c){return _myCardSelected.has(c.id);});
+  if(selected.length===0){showToast('선택된 카드를 찾을 수 없습니다.');return;}
+
+  currentMode=mode;
+  sessionStats={correct:0,wrong:0,newCards:0,masteryGained:0};
+  currentDeck=shuffle(selected);
+  if(currentDeck.length>SESSION_MAX) currentDeck=currentDeck.slice(0,SESSION_MAX);
+  currentIdx=0;
+  startSessionTimer();
+
+  // 선택 모드 해제
+  _myCardSelectMode=false;
+  var bar=document.getElementById('my-cards-select-bar');
+  if(bar) bar.style.display='none';
+
+  if(mode==='flashcard') loadFlashcard();
+  else loadSubjective();
+  showToast('📋 선택한 '+currentDeck.length+'장으로 학습을 시작합니다!');
 }
 
 function updateCustomCardCount(){
