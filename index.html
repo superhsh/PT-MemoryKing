@@ -1267,7 +1267,7 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
 
     <div style="margin-bottom:12px;">
       <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px;">🔑 키워드 선택 — 답변에서 중요 키워드를 콤마(,)로 구분 입력</label>
-      <input id="add-keywords" style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:14px;outline:none;box-sizing:border-box;" placeholder="예: 기술적 진보, 주관적 창작성, 보호할 가치">
+      <textarea id="add-keywords" style="width:100%;min-height:100px;max-height:250px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:12px 14px;color:var(--text);font-size:14px;outline:none;resize:vertical;font-family:'Noto Sans KR',sans-serif;line-height:1.8;box-sizing:border-box;transition:border-color .2s;" onfocus="this.style.borderColor='var(--gold)'" onblur="this.style.borderColor='var(--border)'" oninput="previewKeywords(this.value)" placeholder="예: 기술적 진보, 주관적 창작성, 보호할 가치&#10;&#10;콤마(,)로 구분하여 입력하세요.&#10;빈칸 채우기 시험에 사용됩니다."></textarea>
       <div id="add-kw-preview" style="margin-top:6px;display:flex;flex-wrap:wrap;gap:5px;"></div>
     </div>
 
@@ -3813,6 +3813,11 @@ function autoResizeTextarea(el){
   el.style.height=Math.min(400,Math.max(180,el.scrollHeight))+'px';
   var cc=document.getElementById('add-a-charcount');
   if(cc) cc.textContent=el.value.length+'자';
+}
+function previewKeywords(val){
+  var kws=val.split(',').map(function(k){return k.trim();}).filter(function(k){return k.length>0;});
+  var preview=document.getElementById('add-kw-preview');
+  if(preview) preview.innerHTML=kws.map(function(k){return '<span style="font-size:11px;padding:3px 9px;border-radius:20px;font-family:DM Mono,monospace;background:rgba(82,201,122,.15);color:var(--green);border:1px solid rgba(82,201,122,.3);">'+k+'</span>';}).join('')+'<span style="font-size:10px;color:var(--text3);margin-left:4px;">'+kws.length+'개</span>';
 }
 function resetAll(){
   if(!confirm('모든 학습 데이터를 초기화하시겠습니까?\n(커스텀 카드는 유지됩니다. 커스텀 카드도 삭제하려면 개별 삭제해주세요.)')) return;
