@@ -1194,11 +1194,21 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
     <input type="text" id="search-input" placeholder="법조문, 키워드, 질문 내용 검색..." style="width:100%;background:var(--bg2);border:1.5px solid var(--border);border-radius:12px;padding:14px 44px 14px 16px;color:var(--text);font-size:15px;font-family:'Noto Sans KR',sans-serif;outline:none;box-sizing:border-box;transition:border-color .2s;" onfocus="this.style.borderColor='var(--gold)'" onblur="this.style.borderColor='var(--border)'">
     <span style="position:absolute;right:14px;top:50%;transform:translateY(-50%);font-size:18px;pointer-events:none;">🔍</span>
   </div>
-  <div id="search-result-info" style="font-size:11px;color:var(--text3);margin-bottom:8px;font-family:'DM Mono',monospace;"></div>
-  <div id="search-action-bar" style="display:none;margin-bottom:14px;display:none;gap:8px;flex-wrap:wrap;">
-    <button class="btn btn-blue btn-sm" onclick="startSearchSession('flashcard')" style="flex:1;min-width:120px;">🃏 전체 FC 연속풀기</button>
-    <button class="btn btn-purple btn-sm" onclick="startSearchSession('subjective')" style="flex:1;min-width:120px;">✍️ 전체 주관식 연속풀기</button>
-    <button class="btn btn-secondary btn-sm" onclick="startSearchSession('interleave-fc')" style="flex:1;min-width:120px;">🔀 인터리빙 FC</button>
+  <div id="search-result-info" style="font-size:12px;color:var(--text3);margin-bottom:8px;font-family:'DM Mono',monospace;"></div>
+  <div id="search-action-bar" style="display:none;margin-bottom:10px;gap:8px;flex-wrap:wrap;">
+    <button class="btn btn-blue btn-sm" onclick="startSearchSession('flashcard')" style="flex:1;min-width:90px;padding:8px 6px;font-size:11px;">🃏 FC 연속</button>
+    <button class="btn btn-purple btn-sm" onclick="startSearchSession('subjective')" style="flex:1;min-width:90px;padding:8px 6px;font-size:11px;">✍️ 주관식</button>
+    <button class="btn btn-secondary btn-sm" onclick="startSearchSession('interleave-fc')" style="flex:1;min-width:90px;padding:8px 6px;font-size:11px;">🔀 인터리빙</button>
+  </div>
+  <div id="search-select-bar" style="display:none;background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:10px 14px;margin-bottom:10px;">
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+      <button style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:5px 10px;color:var(--text2);font-size:11px;cursor:pointer;" onclick="toggleSelectAllSearch()">전체 선택/해제</button>
+      <span id="search-sel-count" style="font-family:'DM Mono',monospace;font-size:12px;color:var(--gold);">0장</span>
+      <span style="flex:1;"></span>
+      <button class="btn btn-sm" style="padding:6px 12px;font-size:11px;background:rgba(224,123,82,.15);color:var(--orange);border:1px solid rgba(224,123,82,.3);" onclick="startSearchTTS()">🔊 TTS 재생</button>
+      <button class="btn btn-blue btn-sm" style="padding:6px 12px;font-size:11px;" onclick="startSelectedSearchSession('flashcard')">🃏 FC</button>
+      <button class="btn btn-purple btn-sm" style="padding:6px 12px;font-size:11px;" onclick="startSelectedSearchSession('subjective')">✍️ 주관식</button>
+    </div>
   </div>
   <div id="search-results" style="display:flex;flex-direction:column;gap:8px;"></div>
 </div>
@@ -4762,6 +4772,18 @@ function startTTS(){
   var base=getFilteredCards();
   if(base.length===0){showToast('카드가 없습니다. 카테고리를 확인해주세요.');return;}
   ttsDeck=pickCards(base, true, base.length>30?30:base.length);
+  _initTTSPlayer();
+}
+
+function startTTSWithDeck(cards){
+  loadDB();
+  if(!cards||cards.length===0){showToast('재생할 카드가 없습니다.');return;}
+  ttsDeck=cards.length>30?cards.slice(0,30):cards.slice();
+  _initTTSPlayer();
+  showToast('🔊 '+ttsDeck.length+'장의 카드로 TTS 재생을 시작합니다');
+}
+
+function _initTTSPlayer(){
   ttsIdx=0;
   ttsCurrentRepeat=0;
   ttsPlaying=false;
@@ -5178,14 +5200,52 @@ function goToSearchWithQuery(query){
 
 var _searchDebounce=null;
 var _searchResults=[];
+var _searchSelected=new Set();
+
+function updateSearchSelCount(){
+  var el=document.getElementById('search-sel-count');
+  if(el) el.textContent=_searchSelected.size+'장 선택';
+}
+function toggleSelectAllSearch(){
+  if(_searchSelected.size===_searchResults.length){_searchSelected.clear();}
+  else{_searchResults.forEach(function(c){_searchSelected.add(c.id);});}
+  var grid=document.getElementById('search-results');
+  if(grid) grid.querySelectorAll('input[data-search-id]').forEach(function(chk){
+    var id=chk.getAttribute('data-search-id');
+    chk.checked=_searchSelected.has(id);
+    var r=chk.parentElement;if(r) r.style.borderColor=chk.checked?'var(--gold)':'var(--border)';
+  });
+  updateSearchSelCount();
+}
+function startSearchTTS(){
+  var cards=_searchSelected.size>0?_searchResults.filter(function(c){return _searchSelected.has(c.id);}):_searchResults.slice();
+  if(cards.length===0){showToast('카드를 선택하거나 검색 결과가 필요합니다.');return;}
+  startTTSWithDeck(cards);
+}
+function startSelectedSearchSession(mode){
+  var cards=_searchSelected.size>0?_searchResults.filter(function(c){return _searchSelected.has(c.id);}):[];
+  if(cards.length===0){showToast('카드를 선택해주세요.');return;}
+  loadDB();
+  currentMode=mode;
+  sessionStats={correct:0,wrong:0,newCards:0,masteryGained:0};
+  currentDeck=shuffle(cards);
+  if(currentDeck.length>30) currentDeck=currentDeck.slice(0,30);
+  currentIdx=0;startSessionTimer();
+  if(mode==='flashcard') loadFlashcard(); else loadSubjective();
+  showToast('🔍 선택한 '+currentDeck.length+'장으로 학습 시작!');
+}
+
 function initSearchScreen(){
   var inp=document.getElementById('search-input');
   if(!inp) return;
   inp.value='';
   _searchResults=[];
+  _searchSelected=new Set();
   document.getElementById('search-results').innerHTML='';
   document.getElementById('search-result-info').textContent='키워드, 법조문, 질문 내용으로 검색하세요.';
   document.getElementById('search-action-bar').style.display='none';
+  var selBar=document.getElementById('search-select-bar');
+  if(selBar) selBar.style.display='none';
   // 실시간 검색
   inp.oninput=function(){
     if(_searchDebounce) clearTimeout(_searchDebounce);
@@ -5216,6 +5276,10 @@ function runSearch(query){
   info.textContent=results.length>0?results.length+'개 카드 발견 ('+terms.join(' + ')+')':'검색 결과 없음';
   // 2개 이상이면 연속풀기 버튼 표시
   actionBar.style.display=results.length>=2?'flex':'none';
+  var selectBar=document.getElementById('search-select-bar');
+  if(selectBar) selectBar.style.display=results.length>=1?'block':'none';
+  _searchSelected=new Set();
+  updateSearchSelCount();
   if(results.length===0){
     grid.innerHTML='<div style="text-align:center;color:var(--text3);padding:30px;">일치하는 카드가 없습니다.</div>';
     return;
@@ -5240,8 +5304,23 @@ function runSearch(query){
     wrapper.style.cssText='margin-bottom:2px;';
 
     var row=document.createElement('div');
-    row.style.cssText='background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:12px 14px;cursor:pointer;transition:border-color .2s;';
-    row.innerHTML=
+    row.style.cssText='background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:12px 14px;cursor:pointer;transition:border-color .2s;display:flex;align-items:flex-start;gap:10px;';
+
+    // 체크박스
+    var chk=document.createElement('input');
+    chk.type='checkbox';
+    chk.style.cssText='width:18px;height:18px;accent-color:var(--gold);cursor:pointer;flex-shrink:0;margin-top:3px;';
+    chk.setAttribute('data-search-id',card.id);
+    chk.addEventListener('change',(function(cid,r,c){return function(){
+      if(c.checked) _searchSelected.add(cid); else _searchSelected.delete(cid);
+      r.style.borderColor=c.checked?'var(--gold)':'var(--border)';
+      updateSearchSelCount();
+    };})(card.id,row,chk));
+    row.appendChild(chk);
+
+    var contentDiv=document.createElement('div');
+    contentDiv.style.cssText='flex:1;min-width:0;';
+    contentDiv.innerHTML=
       '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:4px;">'+
         '<span style="font-family:DM Mono,monospace;font-size:10px;color:var(--gold);">'+escapeHTML(card.law)+'</span>'+
         '<span style="font-size:10px;color:var(--text3);">'+escapeHTML(card.cat)+' · '+escapeHTML(card.sub)+'</span>'+
@@ -5254,6 +5333,7 @@ function runSearch(query){
         var hit=terms.some(function(t){return kLow.indexOf(t)>=0;});
         return hit?'<span style="color:var(--gold);font-weight:700;">'+escapeHTML(k)+'</span>':escapeHTML(k);
       }).join(', ')+'</div>';
+    row.appendChild(contentDiv);
 
     // 액션 패널
     var actions=document.createElement('div');
@@ -5286,7 +5366,8 @@ function runSearch(query){
     infoSpan.textContent='FC '+(s?s.fcAttempts||0:0)+'회 · SUB '+(s?s.subAttempts||0:0)+'회';
     actions.appendChild(infoSpan);
 
-    row.addEventListener('click',function(){
+    row.addEventListener('click',function(e){
+      if(e.target.type==='checkbox') return;
       var wasOpen=actions.classList.contains('open');
       grid.querySelectorAll('.prog-actions.open').forEach(function(a){a.classList.remove('open');});
       if(!wasOpen){
