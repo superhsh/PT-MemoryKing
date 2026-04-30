@@ -174,6 +174,29 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
 .rel-search-item:hover{background:var(--bg2);}
 .rel-search-item .rsi-law{font-size:10px;color:var(--gold);font-family:'DM Mono',monospace;margin-right:6px;}
 
+/* ═══ 인라인 TTS 미니 플레이어 ═══ */
+.inline-tts{max-width:680px;margin:14px auto 0;background:var(--bg2);border:1px solid var(--border);border-radius:14px;overflow:hidden;}
+.inline-tts-header{display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer;user-select:none;-webkit-user-select:none;}
+.inline-tts-header:active{background:var(--bg3);}
+.itts-icon{font-size:18px;}
+.itts-title{font-size:12px;font-weight:700;color:var(--orange);flex:1;}
+.itts-arrow{font-size:11px;color:var(--text3);transition:transform .3s;}
+.itts-arrow.open{transform:rotate(180deg);}
+.inline-tts-body{display:none;padding:12px 14px 14px;border-top:1px solid var(--border);}
+.inline-tts-body.open{display:block;}
+.itts-text-preview{background:var(--bg3);border-radius:10px;padding:10px 12px;font-size:12px;color:var(--text2);line-height:1.8;margin-bottom:12px;max-height:100px;overflow-y:auto;}
+.itts-controls{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.itts-btn{padding:8px 14px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;border:none;transition:all .2s;}
+.itts-btn-play{background:var(--orange);color:#fff;}
+.itts-btn-stop{background:var(--bg3);border:1px solid var(--border);color:var(--text2);}
+.itts-btn-play:active,.itts-btn-stop:active{opacity:.8;}
+.itts-rate-wrap{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text3);}
+.itts-rate-wrap input[type=range]{width:70px;accent-color:var(--orange);}
+.itts-status{font-size:11px;color:var(--orange);font-family:'DM Mono',monospace;margin-top:6px;min-height:16px;}
+.itts-read-mode{display:flex;gap:6px;margin-bottom:10px;}
+.itts-read-btn{flex:1;padding:6px;border-radius:8px;font-size:10px;font-weight:700;cursor:pointer;border:1px solid var(--border);background:var(--bg3);color:var(--text2);transition:all .2s;}
+.itts-read-btn.active{background:rgba(224,123,82,.15);border-color:var(--orange);color:var(--orange);}
+
 /* ═══ 취약점 리포트 & 도전 모드 ═══ */
 .weak-section{background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:16px 18px;margin-bottom:14px;}
 .weak-section-title{font-size:10px;color:var(--gold);letter-spacing:2px;text-transform:uppercase;font-family:'DM Mono',monospace;margin-bottom:12px;display:flex;align-items:center;gap:8px;}
@@ -916,6 +939,32 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
     </div>
     <div class="rel-body" id="rel-body-fc"></div>
   </div>
+  <!-- 인라인 TTS (FC) -->
+  <div class="inline-tts" id="inline-tts-fc">
+    <div class="inline-tts-header" onclick="toggleInlineTTS('fc')">
+      <span class="itts-icon">🔊</span>
+      <span class="itts-title">이 카드 음성으로 듣기</span>
+      <span class="itts-arrow" id="itts-arrow-fc">▼</span>
+    </div>
+    <div class="inline-tts-body" id="itts-body-fc">
+      <div class="itts-read-mode">
+        <button class="itts-read-btn active" id="itts-fc-q" onclick="setITTSMode('fc','q')">질문만</button>
+        <button class="itts-read-btn" id="itts-fc-a" onclick="setITTSMode('fc','a')">답변만</button>
+        <button class="itts-read-btn" id="itts-fc-qa" onclick="setITTSMode('fc','qa')">질문+답변</button>
+      </div>
+      <div class="itts-text-preview" id="itts-preview-fc">—</div>
+      <div class="itts-controls">
+        <button class="itts-btn itts-btn-play" onclick="playInlineTTS('fc')">▶ 재생</button>
+        <button class="itts-btn itts-btn-stop" onclick="stopInlineTTS()">■ 정지</button>
+        <div class="itts-rate-wrap">
+          <span>속도</span>
+          <input type="range" id="itts-rate-fc" min="0.6" max="1.5" step="0.05" value="0.85">
+          <span id="itts-rate-val-fc">0.85</span>
+        </div>
+      </div>
+      <div class="itts-status" id="itts-status-fc"></div>
+    </div>
+  </div>
 </div>
 
 <div id="screen-subjective" class="screen">
@@ -972,6 +1021,32 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
       <span class="rel-header-arrow" id="rel-arrow-sub">▼</span>
     </div>
     <div class="rel-body" id="rel-body-sub"></div>
+  </div>
+  <!-- 인라인 TTS (SUB) -->
+  <div class="inline-tts" id="inline-tts-sub">
+    <div class="inline-tts-header" onclick="toggleInlineTTS('sub')">
+      <span class="itts-icon">🔊</span>
+      <span class="itts-title">이 카드 음성으로 듣기</span>
+      <span class="itts-arrow" id="itts-arrow-sub">▼</span>
+    </div>
+    <div class="inline-tts-body" id="itts-body-sub">
+      <div class="itts-read-mode">
+        <button class="itts-read-btn active" id="itts-sub-q" onclick="setITTSMode('sub','q')">질문만</button>
+        <button class="itts-read-btn" id="itts-sub-a" onclick="setITTSMode('sub','a')">답변만</button>
+        <button class="itts-read-btn" id="itts-sub-qa" onclick="setITTSMode('sub','qa')">질문+답변</button>
+      </div>
+      <div class="itts-text-preview" id="itts-preview-sub">—</div>
+      <div class="itts-controls">
+        <button class="itts-btn itts-btn-play" onclick="playInlineTTS('sub')">▶ 재생</button>
+        <button class="itts-btn itts-btn-stop" onclick="stopInlineTTS()">■ 정지</button>
+        <div class="itts-rate-wrap">
+          <span>속도</span>
+          <input type="range" id="itts-rate-sub" min="0.6" max="1.5" step="0.05" value="0.85">
+          <span id="itts-rate-val-sub">0.85</span>
+        </div>
+      </div>
+      <div class="itts-status" id="itts-status-sub"></div>
+    </div>
   </div>
 </div>
 
@@ -2690,6 +2765,7 @@ function loadFlashcard(){
   }
   // 관련 카드 패널 렌더
   renderRelPanel('fc');
+  refreshInlineTTS();
 }
 
 function setupBlankKeyEvents(card){
@@ -3113,6 +3189,7 @@ function loadSubjective(){
   }
   // 관련 카드 패널 렌더
   renderRelPanel('sub');
+  refreshInlineTTS();
 }
 
 function gradeSubjective(){
@@ -4918,6 +4995,7 @@ function ttsTogglePlay(){
 }
 
 function stopTTS(){
+  stopInlineTTS();
   ttsPlaying=false;
   ttsPaused=false;
   ttsCurrentRepeat=0;
@@ -5183,6 +5261,122 @@ function ttsPlayBrowser(fullText, maxRepeat, delay){
   };
   speechSynthesis.cancel();
   setTimeout(function(){speechSynthesis.speak(utter);},50);
+}
+
+// ═══════════════════════════════════════════════════════════
+//  인라인 TTS 미니 플레이어 (FC / 주관식 화면 하단)
+// ═══════════════════════════════════════════════════════════
+var _ittsMode={fc:'q', sub:'q'};
+var _ittsUtter=null;
+var _ittsType=null; // 현재 재생 중인 타입
+
+function toggleInlineTTS(type){
+  var body=document.getElementById('itts-body-'+type);
+  var arrow=document.getElementById('itts-arrow-'+type);
+  if(!body) return;
+  var open=body.classList.contains('open');
+  body.classList.toggle('open',!open);
+  if(arrow) arrow.classList.toggle('open',!open);
+  if(!open) updateITTSPreview(type);
+}
+
+function setITTSMode(type, mode){
+  _ittsMode[type]=mode;
+  // 버튼 active 갱신
+  ['q','a','qa'].forEach(function(m){
+    var btn=document.getElementById('itts-'+type+'-'+m);
+    if(btn) btn.classList.toggle('active', m===mode);
+  });
+  updateITTSPreview(type);
+}
+
+function updateITTSPreview(type){
+  var card=currentDeck[currentIdx];
+  if(!card) return;
+  var el=document.getElementById('itts-preview-'+type);
+  if(!el) return;
+  var mode=_ittsMode[type]||'q';
+  var text=buildITTSText(card, mode);
+  el.textContent=text;
+  // 슬라이더 이벤트
+  var rateEl=document.getElementById('itts-rate-'+type);
+  var rateVal=document.getElementById('itts-rate-val-'+type);
+  if(rateEl&&rateVal){
+    rateEl.oninput=function(){rateVal.textContent=parseFloat(rateEl.value).toFixed(2);};
+  }
+}
+
+function buildITTSText(card, mode){
+  var q=card.q||'';
+  var a=ttsCleanText(card.a||'');
+  if(mode==='q') return q;
+  if(mode==='a') return a;
+  return q + '... ' + a;
+}
+
+function playInlineTTS(type){
+  stopInlineTTS();
+  var card=currentDeck[currentIdx];
+  if(!card){showToast('재생할 카드가 없습니다.');return;}
+  var mode=_ittsMode[type]||'q';
+  var text=buildITTSText(card, mode);
+  if(!text.trim()){showToast('내용이 없습니다.');return;}
+  if(!window.speechSynthesis){showToast('이 브라우저는 음성을 지원하지 않습니다.');return;}
+
+  var rateEl=document.getElementById('itts-rate-'+type);
+  var rate=rateEl?parseFloat(rateEl.value):0.85;
+  var statusEl=document.getElementById('itts-status-'+type);
+  if(statusEl) statusEl.textContent='🔊 재생 중…';
+
+  _ittsType=type;
+  _ittsUtter=new SpeechSynthesisUtterance(text);
+  _ittsUtter.lang='ko-KR';
+  _ittsUtter.rate=rate;
+  _ittsUtter.volume=1.0;
+
+  // 한국어 음성 중 가장 자연스러운 것 선택
+  var voices=speechSynthesis.getVoices();
+  var koVoices=voices.filter(function(v){return v.lang==='ko-KR'||v.lang==='ko_KR';});
+  // Enhanced/Premium 우선
+  var preferred=koVoices.find(function(v){return /enhanced|premium|yuna/i.test(v.name);})||koVoices[0];
+  if(preferred) _ittsUtter.voice=preferred;
+
+  _ittsUtter.onend=function(){
+    if(statusEl) statusEl.textContent='✅ 재생 완료';
+    _ittsUtter=null; _ittsType=null;
+    setTimeout(function(){if(statusEl) statusEl.textContent='';},2000);
+  };
+  _ittsUtter.onerror=function(e){
+    if(e.error==='canceled'||e.error==='interrupted') return;
+    if(statusEl) statusEl.textContent='⚠ 오류: '+e.error;
+    _ittsUtter=null; _ittsType=null;
+  };
+
+  speechSynthesis.cancel();
+  setTimeout(function(){speechSynthesis.speak(_ittsUtter);},60);
+}
+
+function stopInlineTTS(){
+  if(window.speechSynthesis) speechSynthesis.cancel();
+  _ittsUtter=null;
+  ['fc','sub'].forEach(function(t){
+    var s=document.getElementById('itts-status-'+t);
+    if(s) s.textContent='';
+  });
+}
+
+// loadFlashcard / loadSubjective 호출 시 미니 플레이어 카드 갱신
+function refreshInlineTTS(){
+  stopInlineTTS();
+  ['fc','sub'].forEach(function(t){
+    var preview=document.getElementById('itts-preview-'+t);
+    if(preview) preview.textContent='—';
+    var status=document.getElementById('itts-status-'+t);
+    if(status) status.textContent='';
+    // 열려있으면 프리뷰 갱신
+    var body=document.getElementById('itts-body-'+t);
+    if(body&&body.classList.contains('open')) updateITTSPreview(t);
+  });
 }
 
 // ═══════════════════════════════════════════════════════════
